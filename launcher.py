@@ -2,6 +2,8 @@ import os
 import sys
 import webbrowser
 import threading
+import time
+import socket
 from flask import Flask
 from flask_backend import app
 import webview
@@ -10,9 +12,14 @@ import logging
 def run_flask():
     """Run Flask in a separate thread"""
     try:
-        app.run(port=5000, threaded=True)
+        app.run(host='127.0.0.1', port=5000, threaded=True)
     except Exception as e:
         logging.error(f"Flask error: {e}")
+
+def is_port_in_use(port):
+    """Check if a port is in use"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('127.0.0.1', port)) == 0
 
 def main():
     # Setup logging
@@ -27,6 +34,23 @@ def main():
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
 
+        # Wait for Flask to start (max 10 seconds)
+        max_wait = 10
+        wait_time = 0
+        while not is_port_in_use(5000) and wait_time < max_wait:
+            time.sleep(0.5)
+            wait_time += 0.5
+            logging.info(f"Waiting for Flask server to start... {wait_time}s")
+
+        if not is_port_in_use(5000):
+            logging.error("Flask server failed to start within the timeout period.")
+            print("Error: Flask server failed to start. Check the log file for details.")
+            sys.exit(1)
+
+        # Give Flask a moment to initialize routes
+        time.sleep(1)
+        logging.info("Flask server is running. Starting webview...")
+
         # Create a native window using pywebview
         webview.create_window(
             'Cataclysm Studios Economic Simulation',
@@ -40,6 +64,7 @@ def main():
 
     except Exception as e:
         logging.error(f"Application error: {e}")
+        print(f"Error: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':
