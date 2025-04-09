@@ -122,6 +122,7 @@ class EconomicMetrics:
             'Gini_B': calculate_gini(wealth_B_list),
             'WealthGap_A': self.calculate_wealth_gap(wealth_A_list),
             'WealthGap_B': self.calculate_wealth_gap(wealth_B_list),
+            'Bottom20PctShare': self.calculate_bottom_20_pct_share(wealth_B_list),
 
             # Economic Health Indicators
             'PovertyRate_A': self.calculate_poverty_rate(wealth_A_list),
@@ -167,6 +168,18 @@ class EconomicMetrics:
         top_20 = np.mean(sorted(wealth_list)[-int(len(wealth_list)*0.2):])
         bottom_20 = np.mean(sorted(wealth_list)[:int(len(wealth_list)*0.2)])
         return top_20 / bottom_20 if bottom_20 > 0 else float('inf')
+
+    def calculate_bottom_20_pct_share(self, wealth_list):
+        """Calculate the share of total wealth held by the bottom 20% of the population"""
+        total_wealth = sum(wealth_list)
+        if total_wealth <= 0:
+            return 0
+
+        sorted_wealth = sorted(wealth_list)
+        bottom_20_pct_count = int(len(wealth_list) * 0.2)
+        bottom_20_pct_wealth = sum(sorted_wealth[:bottom_20_pct_count])
+
+        return bottom_20_pct_wealth / total_wealth
 
     def calculate_economic_velocity(self):
         """Measure the speed of wealth circulation in the community"""
