@@ -64,11 +64,39 @@ REM Check if uv is installed, if not use pip
 uv --version > nul 2>&1
 if %ERRORLEVEL% EQU 0 (
     echo Using uv to install dependencies...
-    uv pip install -r requirements.txt
+
+    REM Check Python version for compatibility
+    if %PYTHON_MAJOR% EQU 3 (
+        if %PYTHON_MINOR% GEQ 12 (
+            echo Detected Python 3.12 or higher. Using compatible package versions...
+            uv pip install flask>=2.3.3 numpy>=1.26.0 pandas>=2.1.0 pywebview>=4.3.0 werkzeug>=2.3.7 itsdangerous>=2.1.2 click>=8.1.7 Jinja2>=3.1.2 MarkupSafe>=2.1.3
+        ) else (
+            echo Using standard requirements file...
+            uv pip install -r requirements.txt
+        )
+    ) else (
+        echo Using standard requirements file...
+        uv pip install -r requirements.txt
+    )
+
     set INSTALL_RESULT=%ERRORLEVEL%
 ) else (
     echo Using pip to install dependencies...
-    pip install -r requirements.txt
+
+    REM Check Python version for compatibility
+    if %PYTHON_MAJOR% EQU 3 (
+        if %PYTHON_MINOR% GEQ 12 (
+            echo Detected Python 3.12 or higher. Using compatible package versions...
+            pip install flask>=2.3.3 numpy>=1.26.0 pandas>=2.1.0 pywebview>=4.3.0 werkzeug>=2.3.7 itsdangerous>=2.1.2 click>=8.1.7 Jinja2>=3.1.2 MarkupSafe>=2.1.3
+        ) else (
+            echo Using standard requirements file...
+            pip install -r requirements.txt
+        )
+    ) else (
+        echo Using standard requirements file...
+        pip install -r requirements.txt
+    )
+
     set INSTALL_RESULT=%ERRORLEVEL%
 )
 
@@ -79,20 +107,59 @@ if %INSTALL_RESULT% NEQ 0 (
     echo.
 
     REM Try installing dependencies one by one
-    echo Installing Flask...
-    pip install flask
+    echo Installing core dependencies one by one...
 
-    echo Installing Werkzeug...
-    pip install werkzeug
+    REM Check Python version for compatibility
+    if %PYTHON_MAJOR% EQU 3 (
+        if %PYTHON_MINOR% GEQ 12 (
+            echo Using Python 3.12+ compatible versions...
 
-    echo Installing NumPy...
-    pip install numpy
+            echo Installing Flask...
+            pip install flask>=2.3.3
 
-    echo Installing Pandas...
-    pip install pandas
+            echo Installing Werkzeug...
+            pip install werkzeug>=2.3.7
 
-    echo Installing PyWebView...
-    pip install pywebview
+            echo Installing NumPy...
+            pip install numpy>=1.26.0
+
+            echo Installing Pandas...
+            pip install pandas>=2.1.0
+
+            echo Installing PyWebView...
+            pip install pywebview>=4.3.0
+        ) else (
+            echo Installing Flask...
+            pip install flask
+
+            echo Installing Werkzeug...
+            pip install werkzeug
+
+            echo Installing NumPy...
+            pip install numpy
+
+            echo Installing Pandas...
+            pip install pandas
+
+            echo Installing PyWebView...
+            pip install pywebview
+        )
+    ) else (
+        echo Installing Flask...
+        pip install flask
+
+        echo Installing Werkzeug...
+        pip install werkzeug
+
+        echo Installing NumPy...
+        pip install numpy
+
+        echo Installing Pandas...
+        pip install pandas
+
+        echo Installing PyWebView...
+        pip install pywebview
+    )
 
     echo Checking if dependencies were installed...
     python -c "import flask, numpy, pandas, webview" > nul 2>&1

@@ -120,9 +120,11 @@ To distribute this application to other users:
 ### System Requirements
 
 - Windows 10 or later
-- Python 3.8 or later
+- Python 3.8 or later (including Python 3.12)
 - 4GB RAM minimum
 - 100MB free disk space
+
+> **Note for Python 3.12 users**: The setup scripts automatically detect Python 3.12 and use compatible package versions.
 
 ## Project Structure
 
