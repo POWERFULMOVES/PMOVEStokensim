@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  economic-simulation-dev:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./:/app
+    environment:
+      - DISPLAY=:99
+      - DOCKER_CONTAINER=True
+      - FLASK_ENV=development
+      - FLASK_DEBUG=True
+    restart: unless-stopped
+    command: python flask_backend.py

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cataclysm Studios Inc PMOVES Economy Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Your existing HTML content will go here -->
+        <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
+            <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">📈 Cataclysm Studios Inc PMOVES Economy Simulation ⚖️</h1>
+            
+            <form id="simParamsForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <fieldset class="border p-4 rounded-md">
+                    <legend class="text-lg font-semibold px-2">Simulation Setup</legend>
+                    <div>
+                        <label for="NUM_MEMBERS" class="block text-sm text-gray-700">Number of Members:</label>
+                        <input type="number" id="NUM_MEMBERS" name="NUM_MEMBERS" value="50" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    <!-- Add more simulation parameters as needed -->
+                </fieldset>
+                
+                <div class="flex items-end justify-center">
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Run Simulation
+                    </button>
+                </div>
+            </form>
+            
+            <div id="results" class="mt-8">
+                <!-- Simulation results will be displayed here -->
+                <p class="text-center text-gray-500">Run the simulation to see results</p>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
