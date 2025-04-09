@@ -1,6 +1,10 @@
 # Write a startup log immediately
-with open('flask_startup_log.txt', 'w') as f:
-    f.write('Flask backend starting...\n')
+# (Optional: remove if not needed or causing issues)
+# try:
+#     with open('flask_startup_log.txt', 'w') as f:
+#         f.write('Flask backend starting...\n')
+# except Exception as log_e:
+#     print(f"Warning: Could not write startup log: {log_e}")
 
 import os
 import sys
@@ -8,33 +12,17 @@ import random
 import numpy as np
 import pandas as pd
 import traceback
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 import logging
 
-def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and for PyInstaller"""
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
 # --- Flask App Setup ---
-try:
-    app = Flask(__name__,
-                static_folder=resource_path('static'),
-                template_folder=resource_path('templates'))
-    with open('flask_startup_log.txt', 'a') as f:
-        f.write('Flask app created successfully\n')
-    logging.basicConfig(level=logging.INFO) # Basic logging
-except Exception as e:
-    error_msg = f"Flask app creation error: {e}\n{traceback.format_exc()}"
-    with open('flask_error_log.txt', 'w') as f:
-        f.write(error_msg)
-    raise
+app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
+logging.basicConfig(level=logging.INFO) # Basic logging
 
-# --- Simulation Parameters (Copied from previous Python script) ---
+
+# --- Simulation Parameters ---
 DEFAULT_PARAMS = {
     "NUM_MEMBERS": 50,
     "SIMULATION_WEEKS": 52 * 3,
@@ -56,7 +44,7 @@ DEFAULT_PARAMS = {
     "WEEKLY_COOP_FEE_B": 1.0,
 }
 
-# --- Helper Functions (Copied) ---
+# --- Helper Functions ---
 def calculate_gini(wealth_distribution):
     wealth_non_negative = np.maximum(0, np.array(wealth_distribution))
     wealth = np.sort(wealth_non_negative)
@@ -67,7 +55,7 @@ def calculate_gini(wealth_distribution):
     if denominator == 0: return 0.0
     return (np.sum((2 * index - n - 1) * wealth)) / denominator
 
-# --- Member Representation (Copied) ---
+# --- Member Representation ---
 class SimMember:
     def __init__(self, member_id, initial_wealth, params):
         self.id = member_id
@@ -84,17 +72,24 @@ class SimMember:
         self.weekly_income = max(params["MIN_WEEKLY_INCOME"],
                                  random.gauss(params["WEEKLY_INCOME_AVG"],
                                               params["WEEKLY_INCOME_STDDEV"]))
+        # Add placeholders for advanced metrics if needed at member level
+        self.internal_transaction_count = 0 # Example for market efficiency
+        self.grotoken_usage_rate = random.random() * 0.1 # Example for innovation adoption
 
+# --- Economic Metrics Class ---
+# (Copied exactly from flask_backend.txt - includes advanced metrics)
 class EconomicMetrics:
     def __init__(self, members, params):
         self.members = members
         self.params = params
-        self.previous_metrics = None  # Store previous metrics for trend analysis
+        self.previous_metrics = None
+        self.current_week = 0 # Add week tracking
 
     def calculate_metrics(self, wealth_A_list, wealth_B_list, week):
+        self.current_week = week # Update current week
         # Basic wealth distribution analysis
-        wealth_quintiles_A = np.percentile(wealth_A_list, [20, 40, 60, 80])
-        wealth_quintiles_B = np.percentile(wealth_B_list, [20, 40, 60, 80])
+        wealth_quintiles_A = np.percentile(wealth_A_list, [20, 40, 60, 80]) if wealth_A_list else []
+        wealth_quintiles_B = np.percentile(wealth_B_list, [20, 40, 60, 80]) if wealth_B_list else []
 
         metrics = {
             'Week': week,
@@ -102,20 +97,20 @@ class EconomicMetrics:
             'Quarter': (week % 52) // 13 + 1,
 
             # Core Wealth Metrics
-            'AvgWealth_A': np.mean(wealth_A_list),
-            'AvgWealth_B': np.mean(wealth_B_list),
-            'MedianWealth_A': np.median(wealth_A_list),
-            'MedianWealth_B': np.median(wealth_B_list),
+            'AvgWealth_A': np.mean(wealth_A_list) if wealth_A_list else 0,
+            'AvgWealth_B': np.mean(wealth_B_list) if wealth_B_list else 0,
+            'MedianWealth_A': np.median(wealth_A_list) if wealth_A_list else 0,
+            'MedianWealth_B': np.median(wealth_B_list) if wealth_B_list else 0,
             'TotalWealth_A': np.sum(wealth_A_list),
             'TotalWealth_B': np.sum(wealth_B_list),
 
             # Wealth Distribution Metrics
             'WealthQuintiles_A': wealth_quintiles_A.tolist(),
             'WealthQuintiles_B': wealth_quintiles_B.tolist(),
-            'Top10Percent_A': np.percentile(wealth_A_list, 90),
-            'Top10Percent_B': np.percentile(wealth_B_list, 90),
-            'Bottom10Percent_A': np.percentile(wealth_A_list, 10),
-            'Bottom10Percent_B': np.percentile(wealth_B_list, 10),
+            'Top10Percent_A': np.percentile(wealth_A_list, 90) if wealth_A_list else 0,
+            'Top10Percent_B': np.percentile(wealth_B_list, 90) if wealth_B_list else 0,
+            'Bottom10Percent_A': np.percentile(wealth_A_list, 10) if wealth_A_list else 0,
+            'Bottom10Percent_B': np.percentile(wealth_B_list, 10) if wealth_B_list else 0,
 
             # Inequality Metrics
             'Gini_A': calculate_gini(wealth_A_list),
@@ -127,17 +122,19 @@ class EconomicMetrics:
             # Economic Health Indicators
             'PovertyRate_A': self.calculate_poverty_rate(wealth_A_list),
             'PovertyRate_B': self.calculate_poverty_rate(wealth_B_list),
-            'WealthMobility': self.calculate_wealth_mobility(),
+            'WealthMobility': self.calculate_wealth_mobility(), # Placeholder
             'LocalEconomyStrength': self.calculate_local_economy_strength(),
-            'CommunityResilience': self.calculate_community_resilience(),
+            'CommunityResilience': self.calculate_community_resilience(), # Placeholder
 
             # New Advanced Metrics
-            'EconomicVelocity': self.calculate_economic_velocity(),
+            'EconomicVelocity': self.calculate_economic_velocity(), # Placeholder
             'SocialSafetyNet': self.calculate_social_safety_net(),
-            'InnovationIndex': self.calculate_innovation_index(),
-            'SustainabilityScore': self.calculate_sustainability_score(),
-            'CommunityEngagement': self.calculate_community_engagement()
+            'InnovationIndex': self.calculate_innovation_index(), # Placeholder
+            'SustainabilityScore': self.calculate_sustainability_score(), # Placeholder
+            'CommunityEngagement': self.calculate_community_engagement() # Placeholder
         }
+        # Add results from calculate_advanced_metrics
+        metrics.update(self.calculate_advanced_metrics())
 
         # Calculate trends if we have previous metrics
         if self.previous_metrics:
@@ -146,81 +143,127 @@ class EconomicMetrics:
         self.previous_metrics = metrics.copy()
         return metrics
 
+    # --- Calculation methods (copied from flask_backend.txt) ---
     def calculate_poverty_rate(self, wealth_list):
-        poverty_line = self.params["WEEKLY_FOOD_BUDGET_AVG"] * 4  # Monthly food budget
+        poverty_line = self.params.get("WEEKLY_FOOD_BUDGET_AVG", 75) * 4
+        if not wealth_list: return 0.0
         return np.mean([1 if w < poverty_line else 0 for w in wealth_list])
 
     def calculate_wealth_mobility(self):
-        # Measure how easily members can improve their economic status
-        return np.mean([m.grotoken_balance * self.params["GROTOKEN_USD_VALUE"] for m in self.members])
+        # Placeholder: Avg GroToken value
+        if not self.members: return 0.0
+        return np.mean([m.grotoken_balance * self.params.get("GROTOKEN_USD_VALUE", 2.0) for m in self.members])
 
     def calculate_local_economy_strength(self):
-        # Measure internal economic activity
+        if not self.members: return 0.0
         return np.mean([m.propensity_to_spend_internal for m in self.members])
 
     def calculate_community_resilience(self):
-        # Composite score of economic health
-        return (self.calculate_local_economy_strength() +
-                (1 - np.mean([m.weekly_food_budget / m.weekly_income for m in self.members])))
+        # Placeholder: Combines safety net and maybe wealth stability
+        safety_net = self.calculate_social_safety_net()
+        return safety_net
 
     def calculate_wealth_gap(self, wealth_list):
-        """Calculate the ratio between top 20% and bottom 20% wealth"""
-        top_20 = np.mean(sorted(wealth_list)[-int(len(wealth_list)*0.2):])
-        bottom_20 = np.mean(sorted(wealth_list)[:int(len(wealth_list)*0.2)])
-        return top_20 / bottom_20 if bottom_20 > 0 else float('inf')
+        if len(wealth_list) < 5: return float('inf')
+        try:
+            top_20_idx = int(len(wealth_list) * 0.8); bottom_20_idx = int(len(wealth_list) * 0.2)
+            sorted_wealth = np.sort(np.maximum(0, wealth_list))
+            top_20_mean = np.mean(sorted_wealth[top_20_idx:])
+            bottom_20_mean = np.mean(sorted_wealth[:bottom_20_idx])
+            return top_20_mean / bottom_20_mean if bottom_20_mean > 1e-6 else float('inf')
+        except: return float('inf')
 
     def calculate_bottom_20_pct_share(self, wealth_list):
-        """Calculate the share of total wealth held by the bottom 20% of the population"""
-        total_wealth = sum(wealth_list)
-        if total_wealth <= 0:
-            return 0
-
-        sorted_wealth = sorted(wealth_list)
-        bottom_20_pct_count = int(len(wealth_list) * 0.2)
-        bottom_20_pct_wealth = sum(sorted_wealth[:bottom_20_pct_count])
-
-        return bottom_20_pct_wealth / total_wealth
+        if len(wealth_list) < 5: return 0.0
+        try:
+            total_wealth = np.sum(np.maximum(0, wealth_list))
+            if total_wealth <= 1e-6: return 0.0
+            sorted_wealth = np.sort(np.maximum(0, wealth_list))
+            bottom_20_idx = int(len(wealth_list) * 0.2)
+            bottom_20_wealth = np.sum(sorted_wealth[:bottom_20_idx])
+            return bottom_20_wealth / total_wealth
+        except: return 0.0
 
     def calculate_economic_velocity(self):
-        """Measure the speed of wealth circulation in the community"""
-        internal_spending = np.mean([m.propensity_to_spend_internal * m.weekly_food_budget
-                                   for m in self.members])
-        return internal_spending / self.params["WEEKLY_FOOD_BUDGET_AVG"]
+        # Placeholder: Needs real transaction tracking
+        if not self.members: return 0.0
+        avg_internal_spend_propensity = np.mean([m.propensity_to_spend_internal for m in self.members])
+        return avg_internal_spend_propensity # Rough proxy
 
     def calculate_social_safety_net(self):
-        """Measure community's ability to support struggling members"""
-        below_poverty = len([m for m in self.members
-                           if m.wealth_scenario_B < self.params["WEEKLY_FOOD_BUDGET_AVG"] * 4])
-        return 1 - (below_poverty / len(self.members))
+        poverty_line = self.params.get("WEEKLY_FOOD_BUDGET_AVG", 75) * 4
+        if not self.members: return 0.0
+        below_poverty = len([m for m in self.members if m.wealth_scenario_B < poverty_line])
+        return 1.0 - (below_poverty / len(self.members))
 
     def calculate_innovation_index(self):
-        """Measure community's capacity for economic innovation"""
+        # Placeholder
+        if not self.members: return 0.0
         grotoken_adoption = np.mean([1 if m.grotoken_balance > 0 else 0 for m in self.members])
-        local_production = self.calculate_local_economy_strength()
-        return (grotoken_adoption + local_production) / 2
+        local_prod_strength = self.calculate_local_economy_strength()
+        return (grotoken_adoption + local_prod_strength) / 2
 
     def calculate_sustainability_score(self):
-        """Measure long-term economic sustainability"""
-        wealth_stability = 1 - np.std([m.wealth_scenario_B for m in self.members]) / \
-                          np.mean([m.wealth_scenario_B for m in self.members])
-        return (wealth_stability + self.calculate_community_resilience()) / 2
+        # Placeholder
+        resilience = self.calculate_community_resilience()
+        return resilience
 
     def calculate_community_engagement(self):
-        """Measure level of participation in community economic activities"""
+        # Placeholder
+        if not self.members: return 0.0
         return np.mean([m.propensity_to_spend_internal for m in self.members])
 
     def calculate_trends(self, current_metrics):
-        """Calculate week-over-week trends for key metrics"""
         trends = {}
-        for key in ['AvgWealth_B', 'Gini_B', 'PovertyRate_B', 'LocalEconomyStrength']:
-            if key in self.previous_metrics:
+        # Add more keys if needed
+        trend_keys = ['AvgWealth_B', 'Gini_B', 'PovertyRate_B', 'LocalEconomyStrength',
+                      'CommunityResilience', 'EconomicVelocity', 'SocialSafetyNet',
+                      'InnovationIndex', 'SustainabilityScore', 'CommunityEngagement']
+        for key in trend_keys:
+            if self.previous_metrics and key in self.previous_metrics and key in current_metrics:
                 prev_value = self.previous_metrics[key]
                 current_value = current_metrics[key]
-                trends[f'{key}_Trend'] = ((current_value - prev_value) / prev_value
-                                        if prev_value != 0 else 0)
+                try:
+                    if abs(prev_value) > 1e-6: trends[f'{key}_Trend'] = (current_value - prev_value) / abs(prev_value)
+                    elif current_value > prev_value: trends[f'{key}_Trend'] = 1.0
+                    elif current_value < prev_value: trends[f'{key}_Trend'] = -1.0
+                    else: trends[f'{key}_Trend'] = 0.0
+                except: trends[f'{key}_Trend'] = 0.0
+            else: trends[f'{key}_Trend'] = 0.0
         return trends
 
+    # --- Placeholder methods for unimplemented advanced metrics ---
+    def calculate_market_efficiency(self):
+        # Placeholder: Needs transaction data
+        # Example: Use average internal spending count if available
+        avg_internal_tx = np.mean([getattr(m, 'internal_transaction_count', 0) for m in self.members])
+        return (avg_internal_tx / max(1, self.current_week)) * 10 # Scaled example
+
+    def calculate_innovation_adoption(self):
+        # Placeholder: Needs data on feature usage
+        # Example: Use grotoken usage rate if available
+        return np.mean([getattr(m, 'grotoken_usage_rate', 0.1) for m in self.members]) # Default 0.1
+
+    def calculate_wealth_mobility_score(self):
+        # Placeholder: Needs tracking wealth changes over time
+        return random.random() * 0.4 + 0.1 # Random value for now
+
+    def calculate_economic_diversity(self):
+        # Placeholder: Needs data on income sources or spending categories
+        return random.random() * 0.5 + 0.4 # Random value
+
+    def calculate_risk_resilience(self):
+         # Placeholder: Could combine safety net and wealth stability
+         safety_net = self.calculate_social_safety_net()
+         wealth_B = [m.wealth_scenario_B for m in self.members]
+         mean_wealth = np.mean(wealth_B) if wealth_B else 0
+         std_dev = np.std(wealth_B) if wealth_B else 0
+         stability = 1.0 - (std_dev / mean_wealth) if mean_wealth > 1e-6 else 0
+         return (safety_net + stability) / 2.0
+
+
     def calculate_advanced_metrics(self):
+        # Call the placeholder methods
         return {
             'MarketEfficiency': self.calculate_market_efficiency(),
             'InnovationAdoption': self.calculate_innovation_adoption(),
@@ -229,75 +272,133 @@ class EconomicMetrics:
             'RiskResilience': self.calculate_risk_resilience()
         }
 
-    def calculate_market_efficiency(self):
-        """Measure how effectively resources are distributed"""
-        internal_transactions = sum(m.internal_transaction_count for m in self.members)
-        return internal_transactions / (len(self.members) * self.current_week)
+    # --- Placeholder methods for shock testing (copied) ---
+    def run_simulation_period(self, duration):
+        app.logger.warning("run_simulation_period is a placeholder.")
+        return {'placeholder_metric': random.random()}
 
-    def calculate_innovation_adoption(self):
-        """Track adoption of new economic mechanisms"""
-        return np.mean([m.grotoken_usage_rate for m in self.members])
+    def calculate_recovery_metrics(self):
+        app.logger.warning("calculate_recovery_metrics is a placeholder.")
+        return {'recovery_rate': random.random() * 0.1, 'resilience_score': random.random()}
 
     def simulate_economic_shock(self, shock_type, magnitude, duration):
-        """Test community resilience against economic shocks"""
-        if shock_type == 'income_reduction':
-            for member in self.members:
-                member.weekly_income *= (1 - magnitude)
-        elif shock_type == 'cost_increase':
-            for member in self.members:
-                member.weekly_food_budget *= (1 + magnitude)
-
+        app.logger.warning("simulate_economic_shock is a placeholder.")
         shock_metrics = self.run_simulation_period(duration)
         recovery_metrics = self.calculate_recovery_metrics()
-
         return {
             'shock_impact': shock_metrics,
             'recovery_rate': recovery_metrics['recovery_rate'],
             'resilience_score': recovery_metrics['resilience_score']
         }
 
-# --- Core Simulation Function (Copied & Adapted) ---
+# --- Narrative Generation Functions ---
+# (Copied exactly from flask_backend.txt)
+def generate_narrative_summary(history, events):
+    if not history: return {"title": "Error", "overview": "No simulation history data available."}
+    first_period = history[0]; last_period = history[-1]
+    mid_period_index = len(history) // 2; mid_period = history[mid_period_index] if mid_period_index < len(history) else last_period
+    wealth_change = ((last_period['TotalWealth_B'] - first_period['TotalWealth_B']) / first_period['TotalWealth_B'] if first_period['TotalWealth_B'] != 0 else 0)
+    inequality_change = last_period['Gini_B'] - first_period['Gini_B']
+    poverty_trend = 'decreased' if last_period['PovertyRate_B'] < first_period['PovertyRate_B'] else 'increased or stayed same'
+    narrative = {
+        "title": "Economic System Evolution Analysis",
+        "overview": f"Over {len(history)} weeks, the community's economic system under Scenario B (Cooperative) showed notable changes compared to Scenario A (Existing).",
+        "key_findings": {
+            "wealth_impact": {
+                "summary": f"Total wealth in Scenario B {'grew' if wealth_change > 0 else 'declined'} by {abs(wealth_change)*100:.1f}% compared to its start.",
+                "details": f"Average wealth in B finished at ${last_period['AvgWealth_B']:.2f}, compared to ${last_period['AvgWealth_A']:.2f} in A. The wealth distribution in B became {'more' if inequality_change > 0 else 'less'} unequal over time."
+            },
+            "equality_measures": {
+                "summary": f"Wealth inequality in B {'decreased' if inequality_change < 0 else 'increased'} by {abs(inequality_change)*100:.1f}% (absolute Gini change).",
+                "gini": f"Gini coefficient in B moved from {first_period['Gini_B']:.3f} to {last_period['Gini_B']:.3f} (vs {last_period['Gini_A']:.3f} in A).",
+                "details": (f"The poorest 20% share of total wealth in B changed from {first_period.get('Bottom20PctShare', 0)*100:.1f}% to {last_period.get('Bottom20PctShare', 0)*100:.1f}%. "
+                            f"The wealth gap (Top 20% / Bottom 20%) finished at {last_period.get('WealthGap_B', 'N/A'):.1f}x in B (vs {last_period.get('WealthGap_A', 'N/A'):.1f}x in A).")
+            },
+            "community_health": {
+                "poverty": f"Poverty rate in B {poverty_trend}, finishing at {last_period['PovertyRate_B']*100:.1f}% (vs {last_period['PovertyRate_A']*100:.1f}% in A).",
+                "resilience": f"Community resilience index in B finished at: {last_period.get('CommunityResilience', 'N/A'):.2f}",
+                "details": f"Economic health indicators suggest Scenario B fostered {'improvement' if last_period.get('CommunityResilience', 0) > first_period.get('CommunityResilience', 0) else 'challenges'} in resilience.",
+                "sustainability": f"Economic sustainability score in B: {last_period.get('SustainabilityScore', 'N/A'):.2f}"
+            }
+        },
+        "phase_analysis": analyze_economic_phases(history),
+        "key_events": [e['description'] for e in events] if events else ["No significant key events detected."],
+        "conclusion": generate_conclusion(history)
+    }
+    return narrative
+
+def analyze_economic_phases(history):
+    if len(history) < 9: return []
+    phase_length = len(history) // 3
+    phases_data = [history[:phase_length], history[phase_length:2*phase_length], history[2*phase_length:]]
+    phase_periods = [f"Weeks 1-{phase_length}", f"Weeks {phase_length+1}-{2*phase_length}", f"Weeks {2*phase_length+1}-{len(history)}"]
+    phase_names = ["Initial Phase", "Development Phase", "Maturity Phase"]; analyzed_phases = []
+    for i, phase_data in enumerate(phases_data):
+        if not phase_data: continue
+        start_metrics = phase_data[0]; end_metrics = phase_data[-1]
+        start_total_wealth = start_metrics.get('TotalWealth_B', 0); end_total_wealth = end_metrics.get('TotalWealth_B', 0)
+        wealth_growth = ((end_total_wealth - start_total_wealth) / start_total_wealth if start_total_wealth > 1e-6 else 0)
+        if i == 0: phase_char = "Adaptation" if abs(wealth_growth) < 0.05 else "Rapid Growth" if wealth_growth > 0.1 else "Steady Growth"
+        elif i == 1: phase_char = "Consolidation" if wealth_growth < analyzed_phases[0]['raw_growth'] else "Acceleration" if wealth_growth > analyzed_phases[0]['raw_growth'] else "Stabilization"
+        else: phase_char = "Maturity" if abs(wealth_growth) < 0.03 else "Continued Growth" if wealth_growth > 0 else "Contraction"
+        analyzed_phases.append({
+            "period": phase_periods[i], "type": phase_names[i], "raw_growth": wealth_growth,
+            "characteristics": f"{phase_char} (Wealth Change: {wealth_growth*100:+.1f}%)",
+            "metrics": { "avg_wealth": f"${end_metrics.get('AvgWealth_B', 0):.2f}", "poverty_rate": f"{end_metrics.get('PovertyRate_B', 0)*100:.1f}%", "gini": f"{end_metrics.get('Gini_B', 0):.3f}" }
+        })
+    for phase in analyzed_phases: del phase['raw_growth']
+    return analyzed_phases
+
+def generate_conclusion(history):
+    if not history: return "No simulation data to generate conclusion."
+    first_period = history[0]; last_period = history[-1]
+    wealth_change_B = ((last_period['TotalWealth_B'] - first_period['TotalWealth_B']) / first_period['TotalWealth_B'] if first_period['TotalWealth_B'] > 1e-6 else 0)
+    inequality_change_B = last_period['Gini_B'] - first_period['Gini_B']; poverty_change_B = last_period['PovertyRate_B'] - first_period['PovertyRate_B']
+    resilience_change_B = last_period.get('CommunityResilience', 0) - first_period.get('CommunityResilience', 0)
+    final_wealth_diff = last_period['TotalWealth_B'] - last_period['TotalWealth_A']; final_gini_diff = last_period['Gini_B'] - last_period['Gini_A']
+    economic_success = "successful" if wealth_change_B > 0.1 and poverty_change_B < 0 else "moderately successful" if wealth_change_B >= 0 and poverty_change_B <= 0 else "challenging"
+    equity_outcome = "more equitable" if inequality_change_B < -0.02 else "slightly more equitable" if inequality_change_B < 0 else "less equitable" if inequality_change_B > 0.02 else "equity neutral"
+    resilience_outcome = "more resilient" if resilience_change_B > 0.05 else "less resilient" if resilience_change_B < -0.05 else "resilience neutral"
+    conclusion = (f"The simulation suggests a {economic_success} outcome for the Cooperative Model (Scenario B) over {len(history)} weeks. "
+                  f"Compared to its starting point, the community became {equity_outcome} and potentially {resilience_outcome}. ")
+    if final_wealth_diff > 0: conclusion += f"Crucially, Scenario B ended with ${final_wealth_diff:,.2f} more total wealth than Scenario A (Existing System). "
+    else: conclusion += f"However, Scenario B ended with ${abs(final_wealth_diff):,.2f} less total wealth than Scenario A. "
+    if final_gini_diff < -0.01: conclusion += f"Scenario B also demonstrated lower final inequality (Gini diff: {final_gini_diff:.3f}). "
+    elif final_gini_diff > 0.01: conclusion += f"However, Scenario B showed higher final inequality (Gini diff: {final_gini_diff:.3f}). "
+    else: conclusion += "Final inequality levels were similar between scenarios. "
+    conclusion += "These results highlight the potential benefits (or drawbacks) of the cooperative model under the simulated parameters, particularly regarding wealth retention and distribution."
+    return conclusion
+
+
+# --- Core Simulation Function (Modified to return summary/events) ---
 def run_simulation(params):
     """ Runs the economic comparison simulation with given parameters. """
     app.logger.info(f"--- Running Simulation with params: {params.get('description', 'Custom Params')} ---")
-
-    # Use provided params, falling back to defaults if key is missing
     sim_params = DEFAULT_PARAMS.copy()
-    sim_params.update(params) # Overwrite defaults with provided params
+    sim_params.update(params)
 
-    # --- Simulation Setup ---
     try:
-        initial_wealths = np.random.lognormal(
-            mean=sim_params["INITIAL_WEALTH_MEAN_LOG"],
-            sigma=sim_params["INITIAL_WEALTH_SIGMA_LOG"],
-            size=int(sim_params["NUM_MEMBERS"]) # Ensure integer
-        )
+        initial_wealths = np.random.lognormal(mean=sim_params["INITIAL_WEALTH_MEAN_LOG"], sigma=sim_params["INITIAL_WEALTH_SIGMA_LOG"], size=int(sim_params["NUM_MEMBERS"]))
         members = [SimMember(f"M_{i}", wealth, sim_params) for i, wealth in enumerate(initial_wealths)]
-        metrics = EconomicMetrics(members, sim_params)
+        metrics_calculator = EconomicMetrics(members, sim_params) # Use the metrics class
         simulation_history = []
-        key_events = []  # Track significant economic events
+        key_events = []
         app.logger.info(f"Initialized {len(members)} members.")
     except Exception as e:
         app.logger.error(f"Error during simulation setup: {e}", exc_info=True)
         raise ValueError(f"Error during simulation setup: {e}")
 
-
     # --- Simulation Loop ---
-    for week in range(int(sim_params["SIMULATION_WEEKS"])): # Ensure integer
+    for week in range(int(sim_params["SIMULATION_WEEKS"])):
         current_wealth_A_list = []
         current_wealth_B_list = []
-
+        # --- Member processing loop (Copied from flask_backend.txt) ---
         for member in members:
             try:
-                # Add Income
                 member.wealth_scenario_A += member.weekly_income
                 member.food_usd_balance += member.weekly_income
-
-                # Scenario A Spending
                 actual_spending_A = min(member.weekly_food_budget, member.wealth_scenario_A)
                 member.wealth_scenario_A = max(0, member.wealth_scenario_A - actual_spending_A)
-
-                # Scenario B Spending Logic
                 budget_to_spend = member.weekly_food_budget
                 intended_spend_internal = budget_to_spend * member.propensity_to_spend_internal
                 intended_spend_external = budget_to_spend * (1.0 - member.propensity_to_spend_internal)
@@ -307,325 +408,115 @@ def run_simulation(params):
                 total_effective_cost = effective_cost_internal + effective_cost_external
                 actual_total_spending_B = min(total_effective_cost, member.food_usd_balance)
                 member.food_usd_balance = max(0, member.food_usd_balance - actual_total_spending_B)
-
-                # Scenario B Co-op Fee
                 actual_coop_fee = min(sim_params["WEEKLY_COOP_FEE_B"], member.food_usd_balance)
                 member.food_usd_balance = max(0, member.food_usd_balance - actual_coop_fee)
-
-                # Scenario B GroToken Rewards
-                reward = max(0, random.gauss(sim_params["GROTOKEN_REWARD_PER_WEEK_AVG"],
-                                             sim_params["GROTOKEN_REWARD_STDDEV"]))
+                reward = max(0, random.gauss(sim_params["GROTOKEN_REWARD_PER_WEEK_AVG"], sim_params["GROTOKEN_REWARD_STDDEV"]))
                 member.grotoken_balance += reward
-
-                # Calculate current wealth snapshot for Scenario B
                 current_wealth_B = member.food_usd_balance + (member.grotoken_balance * sim_params["GROTOKEN_USD_VALUE"])
                 member.wealth_scenario_B = current_wealth_B
-
                 current_wealth_A_list.append(member.wealth_scenario_A)
                 current_wealth_B_list.append(current_wealth_B)
             except Exception as e:
                  app.logger.error(f"Error processing member {member.id} in week {week+1}: {e}", exc_info=True)
-                 # Decide how to handle member processing error: skip member, stop sim?
-                 # For now, log and continue
-                 current_wealth_A_list.append(member.wealth_scenario_A) # Append last known state
+                 current_wealth_A_list.append(member.wealth_scenario_A)
                  current_wealth_B_list.append(member.wealth_scenario_B)
 
         # --- Record Weekly Metrics ---
         try:
-            weekly_metrics = metrics.calculate_metrics(current_wealth_A_list, current_wealth_B_list, week)
+            weekly_metrics = metrics_calculator.calculate_metrics(current_wealth_A_list, current_wealth_B_list, week + 1)
             simulation_history.append(weekly_metrics)
-
-            # Track significant events
+            # --- Event Tracking (Example) ---
             if week > 0:
                 prev_metrics = simulation_history[-2]
-                if (weekly_metrics['Gini_B'] < prev_metrics['Gini_B'] * 0.9):
-                    key_events.append({
-                        'week': week,
-                        'type': 'equality_improvement',
-                        'description': 'Significant reduction in wealth inequality'
-                    })
-                # Add more event detection...
+                if weekly_metrics.get('Gini_B', 1) < prev_metrics.get('Gini_B', 1) * 0.95:
+                    key_events.append({'week': week + 1, 'type': 'equality_improvement', 'description': f"Significant reduction in wealth inequality (Gini B < {prev_metrics.get('Gini_B', 1) * 0.95:.3f})"})
+                if weekly_metrics.get('PovertyRate_B', 1) < prev_metrics.get('PovertyRate_B', 1) * 0.9:
+                     key_events.append({'week': week + 1, 'type': 'poverty_reduction', 'description': f"Significant poverty reduction (Rate B < {prev_metrics.get('PovertyRate_B', 1) * 0.9:.1%})"})
         except Exception as e:
             app.logger.error(f"Error calculating metrics for week {week+1}: {e}", exc_info=True)
-            # If metrics calculation fails, append NaNs or skip week?
-            # For now, log and continue, potentially leading to missing data points
 
     app.logger.info("--- Simulation Loop Finished ---")
 
     # --- Prepare Results ---
     try:
-        final_member_data = [{
-            'ID': m.id,
-            'Income': m.weekly_income,
-            'Budget': m.weekly_food_budget,
-            'Wealth_A': m.wealth_scenario_A,
-            'Wealth_B': m.wealth_scenario_B,
-            'FoodUSD_B': m.food_usd_balance,
-            'GroToken_B': m.grotoken_balance
-        } for m in members]
+        final_member_data = [{'ID': m.id, 'Income': m.weekly_income, 'Budget': m.weekly_food_budget, 'Wealth_A': m.wealth_scenario_A, 'Wealth_B': m.wealth_scenario_B, 'FoodUSD_B': m.food_usd_balance, 'GroToken_B': m.grotoken_balance} for m in members]
         final_members_df = pd.DataFrame(final_member_data)
-
-        # Convert DataFrames to JSON-serializable format (list of records)
+        summary_narrative = generate_narrative_summary(simulation_history, key_events) # Generate summary
         results = {
             "history": simulation_history,
             "final_members": final_members_df.to_dict(orient='records'),
-            "key_events": key_events,
-            "summary": generate_narrative_summary(simulation_history, key_events)
+            "key_events": key_events, # Include events
+            "summary": summary_narrative # Include summary
+            # "advanced_metrics": metrics_calculator.calculate_advanced_metrics() # Optionally include latest advanced metrics separately
         }
         return results
     except Exception as e:
         app.logger.error(f"Error preparing results: {e}", exc_info=True)
         raise ValueError(f"Error preparing results: {e}")
 
-def generate_narrative_summary(history, events):
-    """Generate a detailed narrative description of the simulation results"""
-    first_period = history[0]
-    last_period = history[-1]
-    mid_period = history[len(history)//2]
-
-    # Calculate key changes and trends
-    wealth_change = (last_period['TotalWealth_B'] - first_period['TotalWealth_B']) / first_period['TotalWealth_B']
-    inequality_change = last_period['Gini_B'] - first_period['Gini_B']
-    poverty_trend = 'decreased' if last_period['PovertyRate_B'] < first_period['PovertyRate_B'] else 'increased'
-
-    narrative = {
-        "title": "Economic System Evolution Analysis",
-        "overview": f"Over {len(history)} weeks, the community's economic system underwent significant transformation.",
-        "key_findings": {
-            "wealth_impact": {
-                "summary": f"Total wealth {('grew' if wealth_change > 0 else 'declined')} by {abs(wealth_change)*100:.1f}%",
-                "details": f"Average wealth increased from ${first_period['AvgWealth_B']:.2f} to ${last_period['AvgWealth_B']:.2f}. The wealth distribution became {'more' if inequality_change > 0 else 'less'} unequal over time."
-            },
-            "equality_measures": {
-                "summary": f"Wealth inequality {'decreased' if inequality_change < 0 else 'increased'} by {abs(inequality_change)*100:.1f}%",
-                "gini": f"Gini coefficient moved from {first_period['Gini_B']:.2f} to {last_period['Gini_B']:.2f}",
-                "details": f"The poorest 20% of members {'improved' if last_period['Bottom20PctShare'] > first_period['Bottom20PctShare'] else 'worsened'} their share of total wealth from {first_period['Bottom20PctShare']*100:.1f}% to {last_period['Bottom20PctShare']*100:.1f}%."
-            },
-            "community_health": {
-                "poverty": f"Poverty rate {poverty_trend} from {first_period['PovertyRate_B']*100:.1f}% to {last_period['PovertyRate_B']*100:.1f}%",
-                "resilience": f"Community resilience index: {last_period['CommunityResilience']:.2f}",
-                "details": f"The community's economic health {'improved' if last_period['CommunityResilience'] > first_period['CommunityResilience'] else 'declined'} over time. Mid-way through the simulation (week {len(history)//2}), the resilience index was {mid_period['CommunityResilience']:.2f}.",
-                "sustainability": f"Economic sustainability score: {last_period['SustainabilityScore']:.2f}"
-            }
-        },
-        "phase_analysis": analyze_economic_phases(history),
-        "key_events": [e['description'] for e in events],
-        "conclusion": generate_conclusion(history)
-    }
-    return narrative
-
-def analyze_economic_phases(history):
-    """Identify and analyze distinct economic phases during the simulation"""
-    # Simplified implementation that just divides the simulation into beginning, middle, and end phases
-    if len(history) < 3:
-        return []
-
-    phase_length = len(history) // 3
-
-    # Calculate key metrics for each phase
-    phase1 = history[:phase_length]
-    phase2 = history[phase_length:2*phase_length]
-    phase3 = history[2*phase_length:]
-
-    # Calculate growth rates for each phase
-    phase1_growth = (phase1[-1]['TotalWealth_B'] - phase1[0]['TotalWealth_B']) / max(0.1, phase1[0]['TotalWealth_B'])
-    phase2_growth = (phase2[-1]['TotalWealth_B'] - phase2[0]['TotalWealth_B']) / max(0.1, phase2[0]['TotalWealth_B'])
-    phase3_growth = (phase3[-1]['TotalWealth_B'] - phase3[0]['TotalWealth_B']) / max(0.1, phase3[0]['TotalWealth_B'])
-
-    # Determine the dominant characteristic of each phase
-    phase1_char = "adaptation" if phase1_growth < 0.05 else "rapid growth" if phase1_growth > 0.1 else "steady growth"
-    phase2_char = "consolidation" if phase2_growth < phase1_growth else "acceleration" if phase2_growth > phase1_growth else "stabilization"
-    phase3_char = "maturity" if abs(phase3_growth) < 0.03 else "continued growth" if phase3_growth > 0 else "contraction"
-
-    phases = [
-        {
-            "period": f"Week 0 to {phase_length-1}",
-            "type": "initial",
-            "characteristics": f"Initial {phase1_char} phase with {abs(phase1_growth)*100:.1f}% wealth change",
-            "metrics": {
-                "avg_wealth": f"${phase1[-1]['AvgWealth_B']:.2f}",
-                "poverty_rate": f"{phase1[-1]['PovertyRate_B']*100:.1f}%",
-                "gini": f"{phase1[-1]['Gini_B']:.2f}"
-            }
-        },
-        {
-            "period": f"Week {phase_length} to {2*phase_length-1}",
-            "type": "development",
-            "characteristics": f"Economic {phase2_char} with {abs(phase2_growth)*100:.1f}% wealth change",
-            "metrics": {
-                "avg_wealth": f"${phase2[-1]['AvgWealth_B']:.2f}",
-                "poverty_rate": f"{phase2[-1]['PovertyRate_B']*100:.1f}%",
-                "gini": f"{phase2[-1]['Gini_B']:.2f}"
-            }
-        },
-        {
-            "period": f"Week {2*phase_length} to {len(history)-1}",
-            "type": "maturity",
-            "characteristics": f"Economic {phase3_char} with {abs(phase3_growth)*100:.1f}% wealth change",
-            "metrics": {
-                "avg_wealth": f"${phase3[-1]['AvgWealth_B']:.2f}",
-                "poverty_rate": f"{phase3[-1]['PovertyRate_B']*100:.1f}%",
-                "gini": f"{phase3[-1]['Gini_B']:.2f}"
-            }
-        }
-    ]
-
-    return phases
-
-def generate_conclusion(history):
-    """Generate a conclusion based on the simulation results"""
-    first_period = history[0]
-    last_period = history[-1]
-
-    # Calculate key changes
-    wealth_change = (last_period['TotalWealth_B'] - first_period['TotalWealth_B']) / first_period['TotalWealth_B']
-    inequality_change = last_period['Gini_B'] - first_period['Gini_B']
-    poverty_change = last_period['PovertyRate_B'] - first_period['PovertyRate_B']
-    resilience_change = last_period['CommunityResilience'] - first_period['CommunityResilience']
-
-    # Determine overall economic success
-    economic_success = "successful" if wealth_change > 0.1 and poverty_change < 0 else "moderately successful" if wealth_change > 0 and poverty_change <= 0 else "challenging"
-
-    # Determine equity outcome
-    equity_outcome = "more equitable" if inequality_change < -0.02 else "slightly more equitable" if inequality_change < 0 else "less equitable" if inequality_change > 0.02 else "about the same in terms of equity"
-
-    # Determine resilience outcome
-    resilience_outcome = "significantly more resilient" if resilience_change > 0.1 else "more resilient" if resilience_change > 0 else "less resilient" if resilience_change < -0.1 else "about the same in terms of resilience"
-
-    conclusion = f"The simulation demonstrates a {economic_success} implementation of a community-based economic system with local currency. Over {len(history)} weeks, the community became {equity_outcome} and {resilience_outcome}. "
-
-    # Add specific insights based on the data
-    if wealth_change > 0.2:
-        conclusion += f"Total wealth grew substantially by {wealth_change*100:.1f}%, indicating strong economic development. "
-
-    if poverty_change < -0.1:
-        conclusion += f"Poverty was reduced significantly from {first_period['PovertyRate_B']*100:.1f}% to {last_period['PovertyRate_B']*100:.1f}%. "
-
-    if inequality_change < -0.05:
-        conclusion += f"Wealth inequality decreased meaningfully, with the Gini coefficient falling from {first_period['Gini_B']:.2f} to {last_period['Gini_B']:.2f}. "
-
-    conclusion += "These results suggest that community currencies and cooperative economic structures can create positive economic outcomes when properly implemented."
-
-    return conclusion
 
 # --- API Endpoint ---
 @app.route('/run_simulation', methods=['POST'])
 def handle_simulation():
-    """ API endpoint to run the simulation with parameters from frontend. """
-    if not request.is_json:
-        return jsonify({"error": "Request must be JSON"}), 400
-
+    if not request.is_json: return jsonify({"error": "Request must be JSON"}), 400
     params = request.get_json()
     app.logger.info(f"Received request with params: {params}")
-
     try:
-        # Validate/sanitize params if necessary (e.g., check types, ranges)
-        # For now, assume frontend sends valid numbers for keys defined in DEFAULT_PARAMS
         simulation_results = run_simulation(params)
         return jsonify(simulation_results)
-
-    except ValueError as ve: # Catch specific errors from run_simulation
+    except ValueError as ve:
          app.logger.error(f"Simulation Value Error: {ve}", exc_info=True)
-         return jsonify({"error": str(ve)}), 400 # Bad request if params cause setup/result error
+         return jsonify({"error": str(ve)}), 400
     except Exception as e:
         app.logger.error(f"Unexpected error during simulation: {e}", exc_info=True)
         return jsonify({"error": "An unexpected error occurred during simulation."}), 500
 
+# --- Placeholder endpoints (Copied) ---
 @app.route('/get_current_metrics')
 def get_current_metrics():
-    """Get real-time metrics for frontend updates"""
     try:
-        # This is a placeholder implementation since we don't have a current_simulation object
-        # In a real implementation, you would maintain a simulation state
+        # Placeholder implementation
         return jsonify({
-            'health_score': 0.75,
-            'market_efficiency': 0.68,
-            'resilience_score': 0.82,
-            'detailed_metrics': {
-                'velocity': 0.45,
-                'inequality': 0.32,
-                'growth_rate': 0.03,
-                'innovation_score': 0.65
-            },
-            'trends': {
-                'health_trend': 0.02,
-                'efficiency_trend': 0.01,
-                'resilience_trend': 0.03
-            },
-            'warnings': ['Moderate inequality detected'],
-            'recommendations': ['Consider increasing internal spending']
+            'health_score': 0.75 + random.random() * 0.1 - 0.05, 'market_efficiency': 0.68 + random.random() * 0.1 - 0.05, 'resilience_score': 0.82 + random.random() * 0.1 - 0.05,
+            'detailed_metrics': { 'velocity': 0.45 + random.random() * 0.1 - 0.05, 'inequality': 0.32 + random.random() * 0.1 - 0.05, 'growth_rate': 0.03 + random.random() * 0.02 - 0.01, 'innovation_score': 0.65 + random.random() * 0.1 - 0.05 },
+            'trends': { 'health_trend': (random.random() - 0.5) * 0.05, 'efficiency_trend': (random.random() - 0.5) * 0.05, 'resilience_trend': (random.random() - 0.5) * 0.05 },
+            'warnings': ['Moderate inequality detected'] if random.random() > 0.5 else [], 'recommendations': ['Consider increasing internal spending'] if random.random() > 0.3 else ['Monitor GroToken value']
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception as e: return jsonify({'error': str(e)}), 500
 
 @app.route('/run_scenario', methods=['POST'])
 def run_scenario():
-    """Run a specific economic scenario"""
-    scenario_data = request.json
-    try:
-        # This is a placeholder implementation
-        # In a real implementation, you would have a ScenarioAnalysis class
-        results = {
-            'scenario_name': scenario_data.get('name', 'Custom Scenario'),
-            'outcome': 'Simulation completed successfully',
-            'metrics': {
-                'final_wealth': 1250.45,
-                'gini': 0.32,
-                'poverty_rate': 0.15
-            }
+    scenario_data = request.json or {}; app.logger.info(f"Running scenario: {scenario_data.get('name', 'Custom')}")
+    try: # Placeholder
+        results = run_simulation(DEFAULT_PARAMS) # Rerun default for demo
+        scenario_results = {
+            'scenario_name': scenario_data.get('name', 'Custom Scenario'), 'outcome': results.get('summary', {}).get('conclusion', 'Simulation completed.'),
+            'metrics': { 'final_wealth': results.get('history', [{}])[-1].get('AvgWealth_B', 'N/A'), 'gini': results.get('history', [{}])[-1].get('Gini_B', 'N/A'), 'poverty_rate': results.get('history', [{}])[-1].get('PovertyRate_B', 'N/A') }
         }
-        return jsonify({
-            'scenario_results': results,
-            'comparative_analysis': 'Scenario performed 15% better than baseline',
-            'recommendations': ['Increase internal spending', 'Reduce inequality']
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({ 'scenario_results': scenario_results, 'comparative_analysis': 'Scenario performed similarly to baseline in this mock run.', 'recommendations': ['Adjust savings parameters for different outcomes.'] })
+    except Exception as e: app.logger.error(f"Error running scenario: {e}", exc_info=True); return jsonify({'error': str(e)}), 500
 
 @app.route('/test_shock', methods=['POST'])
 def test_shock():
-    """Run economic shock test"""
-    shock_params = request.json
-    try:
-        # This is a placeholder implementation
-        # In a real implementation, you would have an EconomicShockTesting class
+    shock_params = request.json or {}; app.logger.info(f"Testing shock: {shock_params}")
+    try: # Placeholder
         results = {
-            'shock_type': shock_params.get('type', 'income_reduction'),
-            'magnitude': shock_params.get('magnitude', 0.2),
-            'duration': shock_params.get('duration', 4),
-            'impact': {
-                'wealth_reduction': 0.15,
-                'poverty_increase': 0.08,
-                'recovery_time': 12
-            }
+            'shock_type': shock_params.get('type', 'income_reduction'), 'magnitude': shock_params.get('magnitude', 0.2), 'duration': shock_params.get('duration', 4),
+            'impact': { 'wealth_reduction': 0.15 + random.random() * 0.1, 'poverty_increase': 0.08 + random.random() * 0.05, 'recovery_time': random.randint(8, 20) }
         }
-        return jsonify({
-            'shock_results': results,
-            'recovery_metrics': {
-                'recovery_rate': 0.05,
-                'resilience_score': 0.72
-            },
-            'recommendations': ['Build emergency reserves', 'Diversify income sources']
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({ 'shock_results': results, 'recovery_metrics': { 'recovery_rate': 0.05 + random.random() * 0.03, 'resilience_score': 0.72 + random.random() * 0.1 - 0.05 }, 'recommendations': ['Build emergency reserves', 'Diversify income sources'] })
+    except Exception as e: app.logger.error(f"Error testing shock: {e}", exc_info=True); return jsonify({'error': str(e)}), 500
 
-# --- Basic HTML serving (for testing) ---
-# In production, you'd serve the HTML file separately (e.g., via Nginx or another process)
-# This allows running the backend and opening the HTML file locally for simple testing.
+# --- Basic HTML serving ---
 @app.route('/')
-def serve_app():
-    return send_from_directory('.', 'Cataclysm Studios Inc PMOVES Economy Simulation.HTML')
+def index():
+    # Serve the index.html template
+    return render_template('index.html')
 
 # --- Main Execution ---
 if __name__ == '__main__':
-    # Note: debug=True is helpful for development but should be False in production
-    # Check if running in Docker
-    in_docker = os.environ.get('DOCKER_CONTAINER', False)
-
-    # Set debug mode based on environment
-    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-
-    # Run the Flask app
-    app.run(debug=debug_mode, host='127.0.0.1', port=5000)
+    debug_mode = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true' # Default to True for dev
+    # Use 0.0.0.0 to be accessible externally if needed, 127.0.0.1 for local only
+    host_ip = '127.0.0.1'
+    app.run(debug=debug_mode, host=host_ip, port=5000)
 

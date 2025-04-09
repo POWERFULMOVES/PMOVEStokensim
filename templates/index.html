@@ -6,95 +6,665 @@
     <title>Cataclysm Studios Inc PMOVES Economy Simulation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@tippy.js/animations@6.x/scale.css" rel="stylesheet">
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 10px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .param-desc { font-size: 0.8rem; color: #6b7280; margin-top: -0.25rem; margin-bottom: 0.5rem; }
+        label { font-weight: 500; }
+        canvas { max-height: 350px; /* Adjusted height */ }
+        /* Timeline Styles */
+        .timeline-container::before { content: ''; position: absolute; left: 1.1rem; top: 0; bottom: 0; width: 2px; background-color: #d1d5db; }
+        .timeline-event { position: relative; padding-left: 3rem; margin-bottom: 1rem; transition: background-color 0.2s ease; }
+        .timeline-event:hover { background-color: #f9fafb; } /* Light hover effect */
+        .timeline-marker { position: absolute; left: 0.6rem; top: 0.1rem; width: 1rem; height: 1rem; background-color: #3b82f6; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px #3b82f6; }
+        .timeline-time { font-size: 0.8rem; color: #6b7280; margin-bottom: 0.2rem; }
+        /* Tooltip Info Icon */
+        .info-icon { cursor: help; color: #9ca3af; font-size: 0.8em; vertical-align: super; transition: color 0.2s; }
+        .info-icon:hover { color: #3b82f6; }
+        /* Basic button styles */
+        .btn-primary { @apply py-2 px-4 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed; }
+        .btn-secondary { @apply py-2 px-4 bg-gray-600 text-white font-medium rounded-md shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition duration-150 disabled:opacity-50 disabled:cursor-not-allowed; }
+        /* Basic Card styles */
+        .metric-card, .stat-card, .analysis-card { @apply bg-white p-4 rounded-lg shadow-sm mb-4; }
+        /* Placeholder styles for charts not implemented via Chart.js */
+        .gauge-chart, .radar-chart, .pyramid-chart, .trend-chart, .matrix-chart, .flow-chart { @apply h-32 bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center text-gray-500 text-xs rounded mt-2; }
+        .prose { max-width: none; } /* Allow prose to take full width */
+        .trend-indicator { font-size: 0.9em; margin-left: 0.5em; }
+        .trend-up::before { content: '▲'; color: green; }
+        .trend-down::before { content: '▼'; color: red; }
+        .trend-neutral::before { content: '▬'; color: gray; }
+    </style>
 </head>
-<body>
-    <div id="app">
-        <!-- Your existing HTML content will go here -->
-        <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
-            <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">📈 Cataclysm Studios Inc PMOVES Economy Simulation ⚖️</h1>
+<body class="bg-gray-100 p-4 md:p-8">
 
-            <form id="simParamsForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <fieldset class="border p-4 rounded-md">
-                    <legend class="text-lg font-semibold px-2">Community Setup</legend>
-                    <div class="grid grid-cols-1 gap-4">
-                        <div>
-                            <label for="NUM_MEMBERS" class="block text-sm text-gray-700">Number of Members:</label>
-                            <input type="number" id="NUM_MEMBERS" name="NUM_MEMBERS" value="50" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="SIMULATION_WEEKS" class="block text-sm text-gray-700">Simulation Weeks:</label>
-                            <input type="number" id="SIMULATION_WEEKS" name="SIMULATION_WEEKS" value="156" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="INITIAL_WEALTH_MEAN_LOG" class="block text-sm text-gray-700">Initial Wealth Mean (log):</label>
-                            <input type="number" id="INITIAL_WEALTH_MEAN_LOG" name="INITIAL_WEALTH_MEAN_LOG" value="6.9" step="0.1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="INITIAL_WEALTH_SIGMA_LOG" class="block text-sm text-gray-700">Initial Wealth Std Dev (log):</label>
-                            <input type="number" id="INITIAL_WEALTH_SIGMA_LOG" name="INITIAL_WEALTH_SIGMA_LOG" value="0.6" step="0.1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md"> <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">📈 Cataclysm Studios Inc PMOVES Economy Simulation ⚖️</h1>
+
+        <form id="simParamsForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+             <fieldset class="border p-4 rounded-md">
+                <legend class="text-lg font-semibold px-2">Simulation Setup</legend>
+                <div>
+                    <label for="NUM_MEMBERS" class="block text-sm text-gray-700">Number of Members:</label>
+                    <input type="number" id="NUM_MEMBERS" name="NUM_MEMBERS" value="50" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="param-desc">Total participants in the simulation.</p>
+                </div>
+                <div>
+                    <label for="SIMULATION_WEEKS" class="block text-sm text-gray-700">Simulation Duration (Weeks):</label>
+                    <input type="number" id="SIMULATION_WEEKS" name="SIMULATION_WEEKS" value="156" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                     <p class="param-desc">Total time steps for the simulation (156 weeks = 3 years).</p>
+                </div>
+                 <div>
+                    <label for="INITIAL_WEALTH_MEAN_LOG" class="block text-sm text-gray-700">Initial Wealth (Log Mean):</label>
+                    <input type="number" step="0.1" id="INITIAL_WEALTH_MEAN_LOG" name="INITIAL_WEALTH_MEAN_LOG" value="6.9" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                     <p class="param-desc">Log of the mean for initial wealth distribution (approx $1000).</p>
+                </div>
+                 <div>
+                    <label for="INITIAL_WEALTH_SIGMA_LOG" class="block text-sm text-gray-700">Initial Wealth (Log Std Dev):</label>
+                    <input type="number" step="0.1" id="INITIAL_WEALTH_SIGMA_LOG" name="INITIAL_WEALTH_SIGMA_LOG" value="0.6" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                     <p class="param-desc">Log standard deviation for initial wealth (controls initial inequality).</p>
+                </div>
+            </fieldset>
+
+             <fieldset class="border p-4 rounded-md">
+                <legend class="text-lg font-semibold px-2">Member Characteristics</legend>
+                 <div>
+                    <label for="WEEKLY_INCOME_AVG" class="block text-sm text-gray-700">Avg Weekly Income ($):</label>
+                    <input type="number" step="1" id="WEEKLY_INCOME_AVG" name="WEEKLY_INCOME_AVG" value="150" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="param-desc">Average income earned per member per week.</p>
+                </div>
+                 <div>
+                    <label for="WEEKLY_FOOD_BUDGET_AVG" class="block text-sm text-gray-700">Avg Weekly Food Budget ($):</label>
+                    <input type="number" step="1" id="WEEKLY_FOOD_BUDGET_AVG" name="WEEKLY_FOOD_BUDGET_AVG" value="75" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                     <p class="param-desc">Average amount needed for food per member per week.</p>
+                </div>
+                <div>
+                    <label for="PERCENT_SPEND_INTERNAL_AVG" class="block text-sm text-gray-700">Avg % Spent Internally (Co-op):</label>
+                    <input type="number" step="0.01" min="0" max="1" id="PERCENT_SPEND_INTERNAL_AVG" name="PERCENT_SPEND_INTERNAL_AVG" value="0.6" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <p class="param-desc">Average proportion of budget spent via co-op (0.0 to 1.0).</p>
+                </div>
+            </fieldset>
+
+            <fieldset class="border p-4 rounded-md md:col-span-2">
+                 <legend class="text-lg font-semibold px-2">Cooperative Model Parameters (Scenario B)</legend>
+                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <label for="GROUP_BUY_SAVINGS_PERCENT" class="block text-sm text-gray-700">Group Buy Savings (%):</label>
+                        <input type="number" step="0.01" min="0" max="1" id="GROUP_BUY_SAVINGS_PERCENT" name="GROUP_BUY_SAVINGS_PERCENT" value="0.15" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="param-desc">Savings rate for group buys (e.g., 0.15 = 15%).</p>
                     </div>
-                </fieldset>
-
-                <fieldset class="border p-4 rounded-md">
-                    <legend class="text-lg font-semibold px-2">Economic Parameters</legend>
-                    <div class="grid grid-cols-1 gap-4">
-                        <div>
-                            <label for="WEEKLY_INCOME_AVG" class="block text-sm text-gray-700">Weekly Income Avg ($):</label>
-                            <input type="number" id="WEEKLY_INCOME_AVG" name="WEEKLY_INCOME_AVG" value="150" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="WEEKLY_FOOD_BUDGET_AVG" class="block text-sm text-gray-700">Weekly Food Budget Avg ($):</label>
-                            <input type="number" id="WEEKLY_FOOD_BUDGET_AVG" name="WEEKLY_FOOD_BUDGET_AVG" value="75" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="PERCENT_SPEND_INTERNAL_AVG" class="block text-sm text-gray-700">Internal Spending % (Avg):</label>
-                            <input type="number" id="PERCENT_SPEND_INTERNAL_AVG" name="PERCENT_SPEND_INTERNAL_AVG" value="0.6" step="0.05" min="0" max="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="GROTOKEN_REWARD_PER_WEEK_AVG" class="block text-sm text-gray-700">GroToken Reward/Week (Avg):</label>
-                            <input type="number" id="GROTOKEN_REWARD_PER_WEEK_AVG" name="GROTOKEN_REWARD_PER_WEEK_AVG" value="0.5" step="0.1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
+                    <div>
+                        <label for="LOCAL_PRODUCTION_SAVINGS_PERCENT" class="block text-sm text-gray-700">Local Prod. Savings (%):</label>
+                        <input type="number" step="0.01" min="0" max="1" id="LOCAL_PRODUCTION_SAVINGS_PERCENT" name="LOCAL_PRODUCTION_SAVINGS_PERCENT" value="0.25" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="param-desc">Savings rate buying local co-op goods (e.g., 0.25 = 25%).</p>
                     </div>
-                </fieldset>
-
-                <fieldset class="border p-4 rounded-md">
-                    <legend class="text-lg font-semibold px-2">Cooperative Benefits</legend>
-                    <div class="grid grid-cols-1 gap-4">
-                        <div>
-                            <label for="GROUP_BUY_SAVINGS_PERCENT" class="block text-sm text-gray-700">Group Buy Savings %:</label>
-                            <input type="number" id="GROUP_BUY_SAVINGS_PERCENT" name="GROUP_BUY_SAVINGS_PERCENT" value="0.15" step="0.05" min="0" max="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="LOCAL_PRODUCTION_SAVINGS_PERCENT" class="block text-sm text-gray-700">Local Production Savings %:</label>
-                            <input type="number" id="LOCAL_PRODUCTION_SAVINGS_PERCENT" name="LOCAL_PRODUCTION_SAVINGS_PERCENT" value="0.25" step="0.05" min="0" max="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="GROTOKEN_USD_VALUE" class="block text-sm text-gray-700">GroToken USD Value:</label>
-                            <input type="number" id="GROTOKEN_USD_VALUE" name="GROTOKEN_USD_VALUE" value="2" step="0.5" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
-                        <div>
-                            <label for="WEEKLY_COOP_FEE_B" class="block text-sm text-gray-700">Weekly Coop Fee ($):</label>
-                            <input type="number" id="WEEKLY_COOP_FEE_B" name="WEEKLY_COOP_FEE_B" value="1" step="0.5" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                        </div>
+                    <div>
+                        <label for="GROTOKEN_REWARD_PER_WEEK_AVG" class="block text-sm text-gray-700">Avg Weekly GroToken Reward:</label>
+                        <input type="number" step="0.1" min="0" id="GROTOKEN_REWARD_PER_WEEK_AVG" name="GROTOKEN_REWARD_PER_WEEK_AVG" value="0.5" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="param-desc">Avg GroTokens 🪙 earned per member per week.</p>
                     </div>
-                </fieldset>
+                     <div>
+                        <label for="GROTOKEN_USD_VALUE" class="block text-sm text-gray-700">GroToken Value ($):</label>
+                        <input type="number" step="0.1" min="0" id="GROTOKEN_USD_VALUE" name="GROTOKEN_USD_VALUE" value="2.0" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="param-desc">Assumed $ value per GroToken 🪙 for wealth calculation.</p>
+                    </div>
+                     <div>
+                        <label for="WEEKLY_COOP_FEE_B" class="block text-sm text-gray-700">Weekly Co-op Fee ($):</label>
+                        <input type="number" step="0.1" min="0" id="WEEKLY_COOP_FEE_B" name="WEEKLY_COOP_FEE_B" value="1.0" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <p class="param-desc">Weekly fee per member for co-op upkeep in Scenario B.</p>
+                    </div>
+                 </div>
+            </fieldset>
+            <div class="md:col-span-2 text-center mt-4">
+                <button type="submit" id="runButton" class="btn-primary">
+                    ▶️ Run Simulation
+                </button>
+            </div>
+        </form>
 
-                <div class="flex items-end justify-center col-span-1 md:col-span-2">
-                    <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-lg font-medium">
-                        Run Simulation
+        <div id="loadingIndicator" class="hidden text-center my-4">
+             <div class="loader"></div>
+             <p class="text-gray-600">Running simulation...</p>
+        </div>
+
+        <div id="resultsArea" class="mt-8 space-y-8 hidden"> <h2 class="text-2xl font-semibold text-gray-800 border-b pb-2">📊 Simulation Results</h2>
+
+            <div id="resultsSummary" class="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 p-5 rounded-lg shadow">
+                <h3 class="font-semibold text-lg mb-3 text-indigo-800">Final State Summary:</h3>
+                </div>
+
+            <div id="narrativeResults" class="space-y-4">
+                <h3 class="text-xl font-semibold text-gray-800">📖 Economic Narrative</h3>
+                <div id="narrativeOverview" class="prose max-w-none bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-200">
+                    </div>
+                <div class="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
+                    <h4 class="font-medium mb-3 text-gray-700">Key Events Timeline:</h4>
+                    <div id="timelineContainer" class="relative timeline-container">
+                        </div>
+                </div>
+                 <div class="bg-green-50 p-4 rounded-lg shadow-sm border border-green-200">
+                     <h4 class="font-medium mb-2 text-green-800">Conclusion:</h4>
+                     <p id="narrativeConclusion" class="text-sm italic text-gray-700"></p>
+                 </div>
+            </div>
+
+            <div id="resultsPlots" class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div class="bg-white p-4 rounded-lg shadow">
+                     <h4 class="text-base font-medium mb-2 text-center text-gray-700">Wealth Inequality (Gini)</h4>
+                     <canvas id="giniChart"></canvas>
+                 </div>
+                 <div class="bg-white p-4 rounded-lg shadow">
+                     <h4 class="text-base font-medium mb-2 text-center text-gray-700">Total Community Wealth</h4>
+                     <canvas id="totalWealthChart"></canvas>
+                 </div>
+                  <div class="bg-white p-4 rounded-lg shadow">
+                     <h4 class="text-base font-medium mb-2 text-center text-gray-700">Average Member Wealth</h4>
+                     <canvas id="avgWealthChart"></canvas>
+                 </div>
+            </div>
+
+             <div id="advancedMetrics" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 <div class="metric-card">
+                    <h3 class="flex items-center text-gray-700 font-semibold">Community Resilience <span class="info-icon ml-2" data-tooltip="Placeholder: Measures ability to withstand shocks (e.g., inverse poverty + stability)">ℹ️</span></h3>
+                    <div id="resilienceScoreDisplay" class="text-3xl font-bold text-center text-blue-600 mt-2">-</div>
+                    <canvas id="resilienceChart" class="mt-2 hidden"></canvas> </div>
+                <div class="metric-card">
+                    <h3 class="flex items-center text-gray-700 font-semibold">Poverty Rate (%) <span class="info-icon ml-2" data-tooltip="Percentage of members below poverty line (approx monthly budget)">ℹ️</span></h3>
+                    <div id="povertyRateDisplay" class="text-3xl font-bold text-center text-red-600 mt-2">-</div>
+                     <canvas id="povertyChart" class="mt-2 hidden"></canvas> </div>
+                <div class="metric-card">
+                    <h3 class="flex items-center text-gray-700 font-semibold">Local Economy Strength <span class="info-icon ml-2" data-tooltip="Placeholder: Index of internal economic activity (e.g., avg internal spend %)">ℹ️</span></h3>
+                     <div id="localEconomyDisplay" class="text-3xl font-bold text-center text-green-600 mt-2">-</div>
+                     <canvas id="localEconomyChart" class="mt-2 hidden"></canvas> </div>
+            </div>
+
+            <div id="resultsTables" class="space-y-6"> <h3 class="text-xl font-semibold text-gray-800">Detailed Table Results:</h3>
+                 <div class="bg-white p-4 rounded-lg shadow overflow-x-auto">
+                     <h4 class="text-base font-medium mb-2 text-gray-700">Yearly Averages:</h4>
+                     <pre id="yearlySummaryTable" class="text-xs leading-relaxed"></pre>
+                 </div>
+                 <div class="bg-white p-4 rounded-lg shadow overflow-x-auto">
+                     <h4 class="text-base font-medium mb-2 text-gray-700">Final Member States (Sample):</h4>
+                     <pre id="finalMembersTable" class="text-xs leading-relaxed"></pre>
+                 </div>
+            </div>
+
+             <div id="advancedAnalytics" class="mt-8 space-y-8 border-t pt-8">
+                <h3 class="text-xl font-semibold text-gray-800">🧪 Advanced Analytics (Placeholders)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="stat-card">
+                        <h4 class="flex items-center text-sm font-semibold text-gray-600">Econ Velocity <span class="info-icon ml-2" data-tooltip="Placeholder: Speed of money circulation">ℹ️</span></h4>
+                        <div id="velocityGauge" class="gauge-chart">Value: <span id="velocityValue">-</span></div>
+                    </div>
+                    <div class="stat-card">
+                         <h4 class="flex items-center text-sm font-semibold text-gray-600">Comm Health <span class="info-icon ml-2" data-tooltip="Placeholder: Radar chart of key health indicators">ℹ️</span></h4>
+                        <div id="healthRadar" class="radar-chart">Requires Radar Chart JS</div>
+                    </div>
+                    <div class="stat-card">
+                         <h4 class="flex items-center text-sm font-semibold text-gray-600">Wealth Dist <span class="info-icon ml-2" data-tooltip="Placeholder: Wealth pyramid/distribution chart">ℹ️</span></h4>
+                        <div id="wealthPyramid" class="pyramid-chart">Requires Custom Viz</div>
+                    </div>
+                    <div class="stat-card">
+                         <h4 class="flex items-center text-sm font-semibold text-gray-600">Sustain Idx <span class="info-icon ml-2" data-tooltip="Placeholder: Trend of sustainability score">ℹ️</span></h4>
+                        <div id="sustainabilityTrend" class="trend-chart">Value: <span id="sustainabilityValue">-</span></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div class="stat-card">
+                        <h4 class="flex items-center text-sm font-semibold text-gray-600">Mobility Matrix <span class="info-icon ml-2" data-tooltip="Placeholder: Economic mobility visualization">ℹ️</span></h4>
+                        <div id="mobilityMatrix" class="matrix-chart">Requires Matrix Viz</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="flex items-center text-sm font-semibold text-gray-600">Engagement Flow <span class="info-icon ml-2" data-tooltip="Placeholder: Community engagement flow">ℹ️</span></h4>
+                        <div id="engagementFlow" class="flow-chart">Requires Flow Viz</div>
+                    </div>
+                </div>
+                <div class="analysis-card">
+                    <h4 class="text-base font-medium mb-2 text-gray-700">Economic Evolution Phases:</h4>
+                    <div id="phasesTimeline" class="relative">Phases timeline requires implementation...</div>
+                 </div>
+            </div>
+
+             <div class="scenario-panel mt-8 border-t pt-8">
+                <h3 class="text-xl font-semibold mb-4">🔬 Scenario Analysis</h3>
+                <div class="scenario-controls flex space-x-4 mb-4">
+                    <button id="runScenarioBtn" class="btn-secondary" data-tooltip="Run simulation with modified parameters (e.g., higher income)">
+                        Run High Income Scenario
+                    </button>
+                    <button id="testShockBtn" class="btn-secondary" data-tooltip="Simulate an economic shock (e.g., income reduction)">
+                        Test Income Shock
                     </button>
                 </div>
-            </form>
-
-            <div id="results" class="mt-8">
-                <!-- Simulation results will be displayed here -->
-                <p class="text-center text-gray-500">Run the simulation to see results</p>
+                <div id="scenarioResults" class="bg-purple-50 p-4 rounded-lg shadow-sm text-sm text-purple-800 min-h-[50px]">
+                    Scenario analysis results will appear here... (Requires backend endpoints)
+                </div>
             </div>
-        </div>
-    </div>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+        </div> </div> <script>
+        // --- Get DOM Elements ---
+        const form = document.getElementById('simParamsForm');
+        const runButton = document.getElementById('runButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resultsArea = document.getElementById('resultsArea');
+        const resultsSummary = document.getElementById('resultsSummary');
+        const yearlySummaryTable = document.getElementById('yearlySummaryTable');
+        const finalMembersTable = document.getElementById('finalMembersTable');
+        const resultsPlotsDiv = document.getElementById('resultsPlots');
+        const narrativeResultsDiv = document.getElementById('narrativeResults');
+        const narrativeOverviewDiv = document.getElementById('narrativeOverview');
+        const timelineContainerDiv = document.getElementById('timelineContainer');
+        const narrativeConclusionP = document.getElementById('narrativeConclusion');
+        const advancedMetricsDiv = document.getElementById('advancedMetrics');
+        const resilienceScoreDisplay = document.getElementById('resilienceScoreDisplay');
+        const povertyRateDisplay = document.getElementById('povertyRateDisplay');
+        const localEconomyDisplay = document.getElementById('localEconomyDisplay');
+        const advancedAnalyticsDiv = document.getElementById('advancedAnalytics'); // Get parent div
+        const velocityValueSpan = document.getElementById('velocityValue');
+        const sustainabilityValueSpan = document.getElementById('sustainabilityValue');
+        const phasesTimelineDiv = document.getElementById('phasesTimeline');
+        const scenarioResultsDiv = document.getElementById('scenarioResults');
+
+
+        // --- Chart Instances ---
+        let chartInstances = {}; // Use an object {id: instance}
+
+        // --- Event Listeners ---
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            runButton.disabled = true; // Disable button during run
+            await runAndDisplaySimulation();
+            runButton.disabled = false; // Re-enable button
+        });
+
+        document.getElementById('runScenarioBtn')?.addEventListener('click', async () => {
+            alert('Running scenario with higher income (Avg $200). Check results below.');
+            runButton.disabled = true;
+            await runAndDisplaySimulation({ WEEKLY_INCOME_AVG: 200 }); // Pass override
+            runButton.disabled = false;
+        });
+         document.getElementById('testShockBtn')?.addEventListener('click', async () => {
+            alert('Economic shock testing requires a dedicated backend endpoint (/test_shock). This button is a placeholder.');
+            scenarioResultsDiv.textContent = 'Shock test endpoint not implemented in backend.';
+            // Example fetch (requires backend implementation):
+            /*
+            try {
+                const shockParams = { type: 'income_reduction', magnitude: 0.3, duration: 8 }; // Example shock
+                const response = await fetch('http://127.0.0.1:5000/test_shock', {
+                     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shockParams)
+                });
+                if (!response.ok) throw new Error('Shock test failed');
+                const shockData = await response.json();
+                scenarioResultsDiv.textContent = `Shock Test Results: Impact=${JSON.stringify(shockData.shock_results?.impact)}, Recovery Score=${shockData.recovery_metrics?.resilience_score?.toFixed(2)}`;
+            } catch (error) {
+                 console.error("Shock test error:", error);
+                 scenarioResultsDiv.textContent = `Shock test failed: ${error}`;
+            }
+            */
+        });
+
+
+        // --- Main Simulation Function ---
+        async function runAndDisplaySimulation(overrideParams = null) {
+            resultsArea.classList.add('hidden');
+            narrativeResultsDiv.classList.add('hidden');
+            advancedMetricsDiv.classList.add('hidden');
+            advancedAnalyticsDiv.classList.add('hidden'); // Hide advanced analytics
+            loadingIndicator.classList.remove('hidden');
+            destroyCharts(); // Destroy old charts
+
+            const formData = new FormData(form);
+            const params = {};
+            for (const [key, value] of formData.entries()) {
+                 const inputElement = document.getElementById(key);
+                 if (inputElement && inputElement.type === 'number') { const numValue = parseFloat(value); params[key] = isNaN(numValue) ? value : numValue; }
+                 else { params[key] = value; }
+            }
+            const finalParams = { ...params, ...overrideParams }; // Apply overrides
+            console.log('Parameters:', finalParams);
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/run_simulation', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify(finalParams),
+                });
+                if (!response.ok) {
+                    let errorMsg = `HTTP error! status: ${response.status}`;
+                    try { const errorData = await response.json(); errorMsg += ` - ${errorData.error || 'Unknown backend error'}`; } catch (e) {}
+                    throw new Error(errorMsg);
+                }
+                const results = await response.json();
+                console.log('Results received:', results);
+                if (!results || !results.history || !results.final_members || !results.summary || !results.key_events) {
+                     throw new Error("Received incomplete results structure from backend.");
+                }
+                displaySimulationResults(results); // Display valid results
+            } catch (error) {
+                console.error('Error running simulation:', error);
+                handleDisplayError(error); // Handle display of error messages
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // --- Display Functions ---
+        function displaySimulationResults(results) {
+            try {
+                clearResultDisplays(); // Clear previous content/errors
+
+                const history = results.history || [];
+                const final_members = results.final_members || [];
+                const summary = results.summary || {};
+                const key_events = results.key_events || [];
+                const final_state = history.length > 0 ? history[history.length - 1] : null;
+
+                if (!history || history.length === 0) {
+                    throw new Error('No simulation history data available');
+                }
+
+                if (!final_state) {
+                    throw new Error('No final state data available');
+                }
+
+                // 1. Final Summary
+                displayFinalSummary(final_state);
+
+                // 2. Narrative & Timeline
+                displayNarrativeAndTimeline(summary, key_events);
+
+                // 3. Basic Charts
+                drawCharts(history);
+
+                // 4. Tables
+                displayTables(history, final_members);
+
+                // 5. Advanced Metrics (Text + Basic Charts if possible)
+                displayAdvancedMetrics(final_state, history); // Pass history for potential charts
+
+                // 6. Advanced Analytics (Placeholders)
+                populateAdvancedAnalyticsPlaceholders(final_state);
+
+                // Make results sections visible
+                resultsArea.classList.remove('hidden');
+                narrativeResultsDiv.classList.remove('hidden');
+                advancedMetricsDiv.classList.remove('hidden');
+                advancedAnalyticsDiv.classList.remove('hidden'); // Show advanced analytics section
+            } catch (error) {
+                console.error('Error displaying simulation results:', error);
+                handleDisplayError(`Error displaying results: ${error.message}`);
+            }
+        }
+
+        function displayFinalSummary(final_state) {
+             // (Same logic as previous version - seems correct)
+             if (final_state) {
+                const totalWealthDiff = (final_state.TotalWealth_B - final_state.TotalWealth_A);
+                const giniDiff = (final_state.Gini_B - final_state.Gini_A);
+                let giniTrend = "⚖️ (No Significant Change)";
+                if (giniDiff < -0.001) giniTrend = "📉 (Improved Equality)";
+                else if (giniDiff > 0.001) giniTrend = "📈 (Worsened Equality)";
+                resultsSummary.innerHTML = `
+                    <h3 class="font-semibold text-lg mb-3 text-indigo-800">Final State Summary (Week ${final_state.Week}):</h3>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <span>Avg Wealth A:</span> <strong class="text-right">$${final_state.AvgWealth_A.toFixed(2)}</strong>
+                        <span>Avg Wealth B:</span> <strong class="text-right">$${final_state.AvgWealth_B.toFixed(2)}</strong>
+                        <span>Total Wealth A:</span> <strong class="text-right">$${final_state.TotalWealth_A.toFixed(2)}</strong>
+                        <span>Total Wealth B:</span> <strong class="text-right">$${final_state.TotalWealth_B.toFixed(2)}</strong>
+                        <span>Gini A:</span> <strong class="text-right">${final_state.Gini_A.toFixed(3)}</strong>
+                        <span>Gini B:</span> <strong class="text-right">${final_state.Gini_B.toFixed(3)}</strong>
+                    </div>
+                    <hr class="my-3 border-indigo-100">
+                    <p class="text-sm">💰 Change in Total Wealth (B vs A): <strong class="${totalWealthDiff >= 0 ? 'text-green-600' : 'text-red-600'}">$${totalWealthDiff.toFixed(2)}</strong></p>
+                    <p class="text-sm">⚖️ Change in Gini Coefficient (B vs A): <strong class="${giniDiff <= 0 ? 'text-green-600' : 'text-red-600'}">${giniDiff.toFixed(3)}</strong> ${giniTrend}</p>
+                `;
+            } else { resultsSummary.innerHTML = '<p class="text-sm text-red-500">Final summary data missing.</p>'; }
+        }
+
+        function displayNarrativeAndTimeline(summary, key_events) {
+             // Narrative Overview (Improved structure access)
+            if (summary && summary.key_findings) {
+                 narrativeOverviewDiv.innerHTML = `
+                    <p class="text-base mb-3">${summary.overview || "Simulation complete."}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                         <div class="bg-blue-100 p-3 rounded border border-blue-200">
+                            <h5 class="font-semibold text-blue-800">Wealth Impact 💰</h5>
+                            <p>${summary.key_findings?.wealth_impact?.summary ?? "N/A"}</p>
+                            <p class="text-xs text-gray-600 mt-1">${summary.key_findings?.wealth_impact?.details ?? ""}</p>
+                         </div>
+                         <div class="bg-green-100 p-3 rounded border border-green-200">
+                             <h5 class="font-semibold text-green-800">Equality Impact ⚖️</h5>
+                            <p>${summary.key_findings?.equality_measures?.summary ?? "N/A"}</p>
+                             <p class="text-xs text-gray-600 mt-1">${summary.key_findings?.equality_measures?.gini ?? ""}. ${summary.key_findings?.equality_measures?.details ?? ""}</p>
+                         </div>
+                         <div class="bg-yellow-100 p-3 rounded sm:col-span-2 border border-yellow-200">
+                             <h5 class="font-semibold text-yellow-800">Community Health ❤️‍🩹</h5>
+                            <p>${summary.key_findings?.community_health?.poverty ?? "N/A"}</p>
+                             <p class="text-xs text-gray-600 mt-1">Resilience: ${summary.key_findings?.community_health?.resilience ?? "N/A"}. Sustainability: ${summary.key_findings?.community_health?.sustainability ?? "N/A"}. ${summary.key_findings?.community_health?.details ?? ""}</p>
+                         </div>
+                    </div>`;
+                 narrativeConclusionP.textContent = summary.conclusion || "No conclusion generated.";
+            } else {
+                narrativeOverviewDiv.innerHTML = '<p class="text-sm text-red-500">Narrative summary data missing.</p>';
+                narrativeConclusionP.textContent = "";
+            }
+
+            // Key Events Timeline
+            if (key_events && key_events.length > 0) {
+                timelineContainerDiv.innerHTML = key_events.map(event => `
+                    <div class="timeline-event">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-time">Week ${event.week}</div>
+                        <p class="text-sm text-gray-800">${event.description || "Event occurred."}</p>
+                    </div>
+                `).join('');
+            } else {
+                timelineContainerDiv.innerHTML = '<p class="text-sm text-gray-500">No significant key events detected.</p>';
+            }
+        }
+
+        function displayTables(history, final_members) {
+             // Yearly Summary Table
+             const yearly_summary_calc = {};
+             history.forEach(row => { /* ... calculation logic same as before ... */
+                 const year = row.Year;
+                 if (!yearly_summary_calc[year]) yearly_summary_calc[year] = { count: 0, AwA: 0, AwB: 0, TwA: 0, TwB: 0, Ga: 0, Gb: 0 };
+                 yearly_summary_calc[year].count++; yearly_summary_calc[year].AwA += row.AvgWealth_A; yearly_summary_calc[year].AwB += row.AvgWealth_B;
+                 yearly_summary_calc[year].TwA = row.TotalWealth_A; yearly_summary_calc[year].TwB = row.TotalWealth_B;
+                 yearly_summary_calc[year].Ga += row.Gini_A; yearly_summary_calc[year].Gb += row.Gini_B;
+             });
+             let yearlyTableHTML = "Year | AvgW_A   | AvgW_B   | TotalW_A    | TotalW_B    | Gini_A | Gini_B\n";
+             yearlyTableHTML += "----|----------|----------|-------------|-------------|--------|--------\n";
+             Object.keys(yearly_summary_calc).sort().forEach(year => {
+                 const data = yearly_summary_calc[year]; const count = data.count;
+                 yearlyTableHTML += `${String(year).padEnd(4)}| $${(data.AwA / count).toFixed(2).padEnd(8)} | $${(data.AwB / count).toFixed(2).padEnd(8)} | $${data.TwA.toFixed(2).padEnd(11)} | $${data.TwB.toFixed(2).padEnd(11)} | ${(data.Ga / count).toFixed(3).padEnd(6)} | ${(data.Gb / count).toFixed(3)}\n`;
+             });
+             yearlySummaryTable.textContent = yearlyTableHTML || 'Yearly summary could not be calculated.';
+
+             // Final Members Table
+            if (final_members.length > 0) {
+                 let tableHTML = "ID  | Income   | Budget   | Wealth_A    | Wealth_B    | FoodUSD_B   | GroToken 🪙\n";
+                 tableHTML += "----|----------|----------|-------------|-------------|-------------|-----------\n";
+                 final_members.slice(0, 5).forEach(row => {
+                      tableHTML += `${String(row.ID).padEnd(3)} | $${row.Income.toFixed(2).padEnd(8)} | $${row.Budget.toFixed(2).padEnd(8)} | $${row.Wealth_A.toFixed(2).padEnd(11)} | $${row.Wealth_B.toFixed(2).padEnd(11)} | $${row.FoodUSD_B.toFixed(2).padEnd(11)} | ${row.GroToken_B.toFixed(2)}\n`;
+                 });
+                 finalMembersTable.textContent = tableHTML;
+             } else { finalMembersTable.textContent = 'Final member data missing or empty.'; }
+        }
+
+         function displayAdvancedMetrics(final_state, history) {
+            // Populate simple text displays
+            if (!final_state) {
+                resilienceScoreDisplay.textContent = 'N/A';
+                povertyRateDisplay.textContent = 'N/A';
+                localEconomyDisplay.textContent = 'N/A';
+                return;
+            }
+            resilienceScoreDisplay.textContent = final_state.CommunityResilience?.toFixed(2) ?? 'N/A';
+            povertyRateDisplay.textContent = final_state.PovertyRate_B !== undefined ? `${(final_state.PovertyRate_B * 100).toFixed(1)}%` : 'N/A';
+            localEconomyDisplay.textContent = final_state.LocalEconomyStrength?.toFixed(2) ?? 'N/A';
+
+            // --- Add Basic Charts for Advanced Metrics ---
+            // Note: These use the *same canvas IDs* as the text displays above,
+            // which is incorrect HTML. We should have separate canvas elements.
+            // Let's assume the canvases resilienceChart, povertyChart, localEconomyChart exist.
+            // We will draw line charts showing the trend over time from history.
+
+            if (history && history.length > 0) {
+                 const weeks = history.map(d => d.Week);
+
+                 // Resilience Trend Chart
+                 const resCtx = document.getElementById('resilienceChart')?.getContext('2d');
+                 if (resCtx) {
+                     document.getElementById('resilienceChart').classList.remove('hidden'); // Show canvas
+                     chartInstances['resilienceChart'] = new Chart(resCtx, {
+                         type: 'line', data: { labels: weeks, datasets: [{ label: 'Resilience Score', data: history.map(d => d.CommunityResilience), borderColor: 'rgb(59, 130, 246)', tension: 0.1, pointRadius: 0 }] },
+                         options: { scales: { y: { beginAtZero: false, title: { display: true, text: 'Score' } }, x: { title: { display: true, text: 'Week' } } }, responsive: true, maintainAspectRatio: false }
+                     });
+                 }
+
+                 // Poverty Rate Trend Chart
+                 const povCtx = document.getElementById('povertyChart')?.getContext('2d');
+                 if (povCtx) {
+                      document.getElementById('povertyChart').classList.remove('hidden');
+                     chartInstances['povertyChart'] = new Chart(povCtx, {
+                         type: 'line', data: { labels: weeks, datasets: [{ label: 'Poverty Rate B (%)', data: history.map(d => d.PovertyRate_B * 100), borderColor: 'rgb(239, 68, 68)', tension: 0.1, pointRadius: 0 }] },
+                         options: { scales: { y: { beginAtZero: true, max: 100, title: { display: true, text: '%' } }, x: { title: { display: true, text: 'Week' } } }, responsive: true, maintainAspectRatio: false }
+                     });
+                 }
+
+                  // Local Economy Strength Trend Chart
+                 const localCtx = document.getElementById('localEconomyChart')?.getContext('2d');
+                 if (localCtx) {
+                      document.getElementById('localEconomyChart').classList.remove('hidden');
+                     chartInstances['localEconomyChart'] = new Chart(localCtx, {
+                         type: 'line', data: { labels: weeks, datasets: [{ label: 'Local Econ Strength', data: history.map(d => d.LocalEconomyStrength), borderColor: 'rgb(34, 197, 94)', tension: 0.1, pointRadius: 0 }] },
+                         options: { scales: { y: { beginAtZero: false, max: 1, title: { display: true, text: 'Index' } }, x: { title: { display: true, text: 'Week' } } }, responsive: true, maintainAspectRatio: false }
+                     });
+                 }
+            }
+        }
+
+        function populateAdvancedAnalyticsPlaceholders(final_state) {
+             if (!final_state) return;
+             // Populate simple values where available
+             if (velocityValueSpan) velocityValueSpan.textContent = final_state.EconomicVelocity?.toFixed(2) ?? 'N/A';
+             if (sustainabilityValueSpan) sustainabilityValueSpan.textContent = final_state.SustainabilityScore?.toFixed(2) ?? 'N/A';
+
+             // Update placeholder text for complex charts - with safety checks
+             const updateElement = (id, text) => {
+                 const element = document.getElementById(id);
+                 if (element) element.textContent = text;
+             };
+
+             updateElement('healthRadar', 'Requires Radar Chart JS Lib');
+             updateElement('wealthPyramid', 'Requires Custom Pyramid Viz');
+             updateElement('mobilityMatrix', 'Requires Matrix Viz');
+             updateElement('engagementFlow', 'Requires Flow Viz');
+
+             // Populate Phases Timeline (basic text version)
+             const phaseAnalysis = results?.summary?.phase_analysis ?? []; // Use results from outer scope
+             if (phasesTimelineDiv && phaseAnalysis.length > 0) {
+                  phasesTimelineDiv.innerHTML = phaseAnalysis.map(phase => `
+                     <div class="mb-3 p-2 border-l-4 border-blue-300">
+                         <p class="font-semibold text-sm">${phase.type} (${phase.period})</p>
+                         <p class="text-xs text-gray-600">${phase.characteristics}</p>
+                     </div>
+                  `).join('');
+             } else if (phasesTimelineDiv) {
+                 phasesTimelineDiv.textContent = 'Economic phase analysis not available.';
+             }
+        }
+
+
+        function handleDisplayError(error) {
+             console.error("Display Error:", error);
+             resultsArea.classList.remove('hidden');
+             resultsSummary.innerHTML = `<h3 class="font-medium mb-2 text-red-600">⛔ Display Error</h3><p class="text-sm text-red-700">Could not display results. Data might be missing or invalid.</p><pre class="text-xs mt-2 bg-red-100 p-2 rounded">${error}</pre>`;
+             yearlySummaryTable.textContent = 'Error displaying data.';
+             finalMembersTable.textContent = 'Error displaying data.';
+             narrativeOverviewDiv.innerHTML = '<p class="text-sm text-red-500">Could not display narrative.</p>';
+             timelineContainerDiv.innerHTML = '';
+             narrativeConclusionP.textContent = '';
+             destroyCharts(); // Clear any existing charts
+             resultsPlotsDiv.innerHTML = '<p class="text-sm text-red-500 text-center">Charts could not be generated.</p>';
+             // Clear advanced metrics displays
+             resilienceScoreDisplay.textContent = 'Error'; povertyRateDisplay.textContent = 'Error'; localEconomyDisplay.textContent = 'Error';
+             if (velocityValueSpan) velocityValueSpan.textContent = 'Error';
+             if (sustainabilityValueSpan) sustainabilityValueSpan.textContent = 'Error';
+             if (phasesTimelineDiv) phasesTimelineDiv.textContent = 'Error loading phases.';
+
+        }
+
+        function clearResultDisplays() {
+            resultsSummary.innerHTML = '<p class="text-sm text-gray-700">Summary statistics will appear here...</p>';
+            yearlySummaryTable.textContent = 'Yearly summary table will appear here...';
+            finalMembersTable.textContent = 'Final member states table will appear here...';
+            narrativeOverviewDiv.innerHTML = '';
+            timelineContainerDiv.innerHTML = '';
+            narrativeConclusionP.textContent = '';
+            resilienceScoreDisplay.textContent = '-';
+            povertyRateDisplay.textContent = '-';
+            localEconomyDisplay.textContent = '-';
+             if (velocityValueSpan) velocityValueSpan.textContent = '-';
+             if (sustainabilityValueSpan) sustainabilityValueSpan.textContent = '-';
+             if (phasesTimelineDiv) phasesTimelineDiv.textContent = 'Economic phase analysis will appear here...';
+             if (scenarioResultsDiv) scenarioResultsDiv.textContent = 'Scenario analysis results will appear here...';
+            // Clear previous charts
+            destroyCharts();
+            // Clear chart area (optional, or let new charts overwrite)
+            resultsPlotsDiv.innerHTML = `
+                 <div class="bg-gray-50 p-4 rounded-lg shadow-sm"><h4 class="text-sm font-medium mb-2 text-center text-gray-600">Wealth Inequality (Gini)</h4><canvas id="giniChart"></canvas></div>
+                 <div class="bg-gray-50 p-4 rounded-lg shadow-sm"><h4 class="text-sm font-medium mb-2 text-center text-gray-600">Total Community Wealth</h4><canvas id="totalWealthChart"></canvas></div>
+                 <div class="bg-gray-50 p-4 rounded-lg shadow-sm"><h4 class="text-sm font-medium mb-2 text-center text-gray-600">Average Member Wealth</h4><canvas id="avgWealthChart"></canvas></div>`;
+            // Clear advanced chart canvases if they exist
+            document.getElementById('resilienceChart')?.getContext('2d').clearRect(0,0,10,10); // Clear canvas content
+            document.getElementById('povertyChart')?.getContext('2d').clearRect(0,0,10,10);
+            document.getElementById('localEconomyChart')?.getContext('2d').clearRect(0,0,10,10);
+            document.getElementById('resilienceChart')?.classList.add('hidden'); // Re-hide canvases
+            document.getElementById('povertyChart')?.classList.add('hidden');
+            document.getElementById('localEconomyChart')?.classList.add('hidden');
+        }
+
+
+        // --- Chart Drawing Functions ---
+        function destroyCharts() {
+            Object.values(chartInstances).forEach(chart => { if (chart) chart.destroy(); });
+            chartInstances = {};
+        }
+
+        function drawCharts(historyData) {
+            const weeks = historyData.map(d => d.Week);
+            const chartConfigs = [
+                { id: 'giniChart', labelA: 'Gini A (Existing)', labelB: 'Gini B (Cooperative)', dataKeyA: 'Gini_A', dataKeyB: 'Gini_B', yLabel: 'Gini (0=Equality)', yMax: 1, colorA: 'rgb(239, 68, 68)', colorB: 'rgb(34, 197, 94)' },
+                { id: 'totalWealthChart', labelA: 'Total Wealth A', labelB: 'Total Wealth B', dataKeyA: 'TotalWealth_A', dataKeyB: 'TotalWealth_B', yLabel: 'Total Wealth ($)', colorA: 'rgb(239, 68, 68)', colorB: 'rgb(75, 192, 192)' },
+                { id: 'avgWealthChart', labelA: 'Avg Wealth A', labelB: 'Avg Wealth B', dataKeyA: 'AvgWealth_A', dataKeyB: 'AvgWealth_B', yLabel: 'Average Wealth ($)', colorA: 'rgb(239, 68, 68)', colorB: 'rgb(75, 192, 192)' }
+            ];
+
+            chartConfigs.forEach(config => {
+                const ctx = document.getElementById(config.id)?.getContext('2d');
+                if (!ctx) { console.error(`Canvas element with id ${config.id} not found.`); return; }
+                chartInstances[config.id] = new Chart(ctx, { // Store instance
+                    type: 'line',
+                    data: { labels: weeks, datasets: [
+                        { label: config.labelA, data: historyData.map(d => d[config.dataKeyA]), borderColor: config.colorA, backgroundColor: config.colorA.replace(')', ', 0.1)').replace('rgb', 'rgba'), tension: 0.1, borderWidth: 1.5, pointRadius: 0 },
+                        { label: config.labelB, data: historyData.map(d => d[config.dataKeyB]), borderColor: config.colorB, backgroundColor: config.colorB.replace(')', ', 0.1)').replace('rgb', 'rgba'), tension: 0.1, borderWidth: 1.5, pointRadius: 0 }
+                    ]},
+                    options: { scales: { y: { beginAtZero: true, max: config.yMax, title: { display: true, text: config.yLabel } }, x: { title: { display: true, text: 'Week' } } }, responsive: true, maintainAspectRatio: false, animation: { duration: 300 } }
+                });
+            });
+        }
+
+         // --- Initialize Tooltips ---
+        document.addEventListener('DOMContentLoaded', () => {
+            tippy('[data-tooltip]', {
+                content(reference) { return reference.getAttribute('data-tooltip'); },
+                animation: 'scale', theme: 'light-border', // Use light theme
+            });
+        });
+
+    </script>
+
 </body>
 </html>
