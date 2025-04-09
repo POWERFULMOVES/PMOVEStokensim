@@ -1,13 +1,13 @@
 // Main JavaScript for the Economic Simulation application
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Economic Simulation Application initialized');
-    
+
     // Initialize tooltips
     tippy('[data-tippy-content]', {
         animation: 'scale',
         theme: 'light-border',
     });
-    
+
     // Setup form submission
     const simForm = document.getElementById('simParamsForm');
     if (simForm) {
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
             runSimulation();
         });
     }
-    
+
     // Initialize any charts or visualizations
     initializeCharts();
 });
@@ -25,15 +25,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function runSimulation() {
     const formData = new FormData(document.getElementById('simParamsForm'));
     const params = {};
-    
+
     // Convert form data to JSON object
     for (const [key, value] of formData.entries()) {
         params[key] = isNaN(value) ? value : Number(value);
     }
-    
+
     // Show loading indicator
     document.getElementById('results').innerHTML = '<div class="loader"></div><p class="text-center">Running simulation...</p>';
-    
+
     // Call the API
     fetch('/run_simulation', {
         method: 'POST',
@@ -69,30 +69,30 @@ function initializeCharts() {
 // Function to display simulation results
 function displayResults(data) {
     const resultsDiv = document.getElementById('results');
-    
+
     // Clear previous results
     resultsDiv.innerHTML = '';
-    
+
     // Create tabs for different result views
     const tabsHtml = `
         <div class="mb-4 border-b border-gray-200">
             <ul class="flex flex-wrap -mb-px" role="tablist">
                 <li class="mr-2">
-                    <button class="inline-block p-4 border-b-2 border-indigo-500 text-indigo-600 active" 
+                    <button class="inline-block p-4 border-b-2 border-indigo-500 text-indigo-600 active"
                             id="summary-tab" data-tab="summary">Summary</button>
                 </li>
                 <li class="mr-2">
-                    <button class="inline-block p-4 border-b-2 border-transparent hover:border-gray-300" 
+                    <button class="inline-block p-4 border-b-2 border-transparent hover:border-gray-300"
                             id="charts-tab" data-tab="charts">Charts</button>
                 </li>
                 <li class="mr-2">
-                    <button class="inline-block p-4 border-b-2 border-transparent hover:border-gray-300" 
+                    <button class="inline-block p-4 border-b-2 border-transparent hover:border-gray-300"
                             id="data-tab" data-tab="data">Raw Data</button>
                 </li>
             </ul>
         </div>
     `;
-    
+
     // Create content for each tab
     const tabContentHtml = `
         <div id="summary" class="tab-content">
@@ -100,16 +100,41 @@ function displayResults(data) {
             <div class="prose">
                 <p>${data.summary.overview}</p>
                 <h3>Key Findings</h3>
-                <ul>
-                    <li><strong>Wealth Impact:</strong> ${data.summary.key_findings.wealth_impact.summary}</li>
-                    <li><strong>Equality Measures:</strong> ${data.summary.key_findings.equality_measures.summary}</li>
-                    <li><strong>Community Health:</strong> ${data.summary.key_findings.community_health.poverty}</li>
-                </ul>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-blue-800">Wealth Impact</h4>
+                        <p class="text-blue-700">${data.summary.key_findings.wealth_impact.summary}</p>
+                        <p class="text-sm mt-2">${data.summary.key_findings.wealth_impact.details || ''}</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-green-800">Equality Measures</h4>
+                        <p class="text-green-700">${data.summary.key_findings.equality_measures.summary}</p>
+                        <p class="text-sm mt-2">${data.summary.key_findings.equality_measures.details || ''}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-purple-800">Community Health</h4>
+                        <p class="text-purple-700">${data.summary.key_findings.community_health.poverty}</p>
+                        <p class="text-purple-700 mt-1">${data.summary.key_findings.community_health.resilience}</p>
+                        <p class="text-sm mt-2">${data.summary.key_findings.community_health.details || ''}</p>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg">
+                        <h4 class="font-semibold text-yellow-800">Economic Evolution</h4>
+                        <ul class="text-sm mt-2">
+                            ${data.summary.phase_analysis.map(phase => `
+                                <li class="mb-2">
+                                    <strong>${phase.period}:</strong> ${phase.characteristics}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
                 <h3>Conclusion</h3>
                 <p>${data.summary.conclusion}</p>
             </div>
         </div>
-        
+
         <div id="charts" class="tab-content hidden">
             <h2 class="text-xl font-semibold mb-4">Simulation Charts</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -131,7 +156,7 @@ function displayResults(data) {
                 </div>
             </div>
         </div>
-        
+
         <div id="data" class="tab-content hidden">
             <h2 class="text-xl font-semibold mb-4">Raw Simulation Data</h2>
             <div class="overflow-x-auto">
@@ -152,10 +177,10 @@ function displayResults(data) {
             </div>
         </div>
     `;
-    
+
     // Add tabs and content to the results div
     resultsDiv.innerHTML = tabsHtml + tabContentHtml;
-    
+
     // Add event listeners to tabs
     document.querySelectorAll('[data-tab]').forEach(tab => {
         tab.addEventListener('click', function() {
@@ -163,33 +188,33 @@ function displayResults(data) {
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.add('hidden');
             });
-            
+
             // Remove active class from all tabs
             document.querySelectorAll('[data-tab]').forEach(t => {
                 t.classList.remove('border-indigo-500', 'text-indigo-600');
                 t.classList.add('border-transparent');
             });
-            
+
             // Show selected tab content
             const tabId = this.getAttribute('data-tab');
             document.getElementById(tabId).classList.remove('hidden');
-            
+
             // Add active class to selected tab
             this.classList.add('border-indigo-500', 'text-indigo-600');
             this.classList.remove('border-transparent');
-            
+
             // Initialize charts if charts tab is selected
             if (tabId === 'charts') {
                 createCharts(data);
             }
-            
+
             // Populate data table if data tab is selected
             if (tabId === 'data') {
                 populateDataTable(data.history);
             }
         });
     });
-    
+
     // Create charts for initial display
     createCharts(data);
 }
@@ -197,7 +222,7 @@ function displayResults(data) {
 // Function to create charts from simulation data
 function createCharts(data) {
     const weeks = data.history.map(d => d.Week);
-    
+
     // Wealth Chart
     const wealthCtx = document.getElementById('wealthChart').getContext('2d');
     new Chart(wealthCtx, {
@@ -250,7 +275,7 @@ function createCharts(data) {
             }
         }
     });
-    
+
     // Gini Chart
     const giniCtx = document.getElementById('giniChart').getContext('2d');
     new Chart(giniCtx, {
@@ -303,7 +328,7 @@ function createCharts(data) {
             }
         }
     });
-    
+
     // Poverty Chart
     const povertyCtx = document.getElementById('povertyChart').getContext('2d');
     new Chart(povertyCtx, {
@@ -356,7 +381,7 @@ function createCharts(data) {
             }
         }
     });
-    
+
     // Resilience Chart
     const resilienceCtx = document.getElementById('resilienceChart').getContext('2d');
     new Chart(resilienceCtx, {
@@ -408,7 +433,7 @@ function createCharts(data) {
 function populateDataTable(history) {
     const tableBody = document.getElementById('dataTable');
     tableBody.innerHTML = '';
-    
+
     history.forEach(week => {
         const row = document.createElement('tr');
         row.innerHTML = `

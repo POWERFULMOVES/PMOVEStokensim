@@ -30,6 +30,9 @@ def build_executable():
         '--hidden-import=numpy',
         '--hidden-import=pandas',
         '--hidden-import=webview',
+        '--hidden-import=pkg_resources._vendor.jaraco.functools',
+        '--hidden-import=pkg_resources._vendor.jaraco.context',
+        '--hidden-import=pkg_resources._vendor.jaraco.text',
         # Add any other required hidden imports
     ]
 

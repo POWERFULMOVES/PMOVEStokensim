@@ -368,6 +368,7 @@ def generate_narrative_summary(history, events):
     """Generate a detailed narrative description of the simulation results"""
     first_period = history[0]
     last_period = history[-1]
+    mid_period = history[len(history)//2]
 
     # Calculate key changes and trends
     wealth_change = (last_period['TotalWealth_B'] - first_period['TotalWealth_B']) / first_period['TotalWealth_B']
@@ -380,15 +381,17 @@ def generate_narrative_summary(history, events):
         "key_findings": {
             "wealth_impact": {
                 "summary": f"Total wealth {('grew' if wealth_change > 0 else 'declined')} by {abs(wealth_change)*100:.1f}%",
-                "details": "Detailed wealth distribution analysis"
+                "details": f"Average wealth increased from ${first_period['AvgWealth_B']:.2f} to ${last_period['AvgWealth_B']:.2f}. The wealth distribution became {'more' if inequality_change > 0 else 'less'} unequal over time."
             },
             "equality_measures": {
                 "summary": f"Wealth inequality {'decreased' if inequality_change < 0 else 'increased'} by {abs(inequality_change)*100:.1f}%",
-                "gini": f"Gini coefficient moved from {first_period['Gini_B']:.2f} to {last_period['Gini_B']:.2f}"
+                "gini": f"Gini coefficient moved from {first_period['Gini_B']:.2f} to {last_period['Gini_B']:.2f}",
+                "details": f"The poorest 20% of members {'improved' if last_period['Bottom20PctShare'] > first_period['Bottom20PctShare'] else 'worsened'} their share of total wealth from {first_period['Bottom20PctShare']*100:.1f}% to {last_period['Bottom20PctShare']*100:.1f}%."
             },
             "community_health": {
                 "poverty": f"Poverty rate {poverty_trend} from {first_period['PovertyRate_B']*100:.1f}% to {last_period['PovertyRate_B']*100:.1f}%",
                 "resilience": f"Community resilience index: {last_period['CommunityResilience']:.2f}",
+                "details": f"The community's economic health {'improved' if last_period['CommunityResilience'] > first_period['CommunityResilience'] else 'declined'} over time. Mid-way through the simulation (week {len(history)//2}), the resilience index was {mid_period['CommunityResilience']:.2f}.",
                 "sustainability": f"Economic sustainability score: {last_period['SustainabilityScore']:.2f}"
             }
         },
@@ -406,32 +409,91 @@ def analyze_economic_phases(history):
 
     phase_length = len(history) // 3
 
+    # Calculate key metrics for each phase
+    phase1 = history[:phase_length]
+    phase2 = history[phase_length:2*phase_length]
+    phase3 = history[2*phase_length:]
+
+    # Calculate growth rates for each phase
+    phase1_growth = (phase1[-1]['TotalWealth_B'] - phase1[0]['TotalWealth_B']) / max(0.1, phase1[0]['TotalWealth_B'])
+    phase2_growth = (phase2[-1]['TotalWealth_B'] - phase2[0]['TotalWealth_B']) / max(0.1, phase2[0]['TotalWealth_B'])
+    phase3_growth = (phase3[-1]['TotalWealth_B'] - phase3[0]['TotalWealth_B']) / max(0.1, phase3[0]['TotalWealth_B'])
+
+    # Determine the dominant characteristic of each phase
+    phase1_char = "adaptation" if phase1_growth < 0.05 else "rapid growth" if phase1_growth > 0.1 else "steady growth"
+    phase2_char = "consolidation" if phase2_growth < phase1_growth else "acceleration" if phase2_growth > phase1_growth else "stabilization"
+    phase3_char = "maturity" if abs(phase3_growth) < 0.03 else "continued growth" if phase3_growth > 0 else "contraction"
+
     phases = [
         {
             "period": f"Week 0 to {phase_length-1}",
             "type": "initial",
-            "characteristics": "Initial economic adaptation phase"
+            "characteristics": f"Initial {phase1_char} phase with {abs(phase1_growth)*100:.1f}% wealth change",
+            "metrics": {
+                "avg_wealth": f"${phase1[-1]['AvgWealth_B']:.2f}",
+                "poverty_rate": f"{phase1[-1]['PovertyRate_B']*100:.1f}%",
+                "gini": f"{phase1[-1]['Gini_B']:.2f}"
+            }
         },
         {
             "period": f"Week {phase_length} to {2*phase_length-1}",
             "type": "development",
-            "characteristics": "Economic development and stabilization"
+            "characteristics": f"Economic {phase2_char} with {abs(phase2_growth)*100:.1f}% wealth change",
+            "metrics": {
+                "avg_wealth": f"${phase2[-1]['AvgWealth_B']:.2f}",
+                "poverty_rate": f"{phase2[-1]['PovertyRate_B']*100:.1f}%",
+                "gini": f"{phase2[-1]['Gini_B']:.2f}"
+            }
         },
         {
             "period": f"Week {2*phase_length} to {len(history)-1}",
             "type": "maturity",
-            "characteristics": "Economic maturity and long-term trends"
+            "characteristics": f"Economic {phase3_char} with {abs(phase3_growth)*100:.1f}% wealth change",
+            "metrics": {
+                "avg_wealth": f"${phase3[-1]['AvgWealth_B']:.2f}",
+                "poverty_rate": f"{phase3[-1]['PovertyRate_B']*100:.1f}%",
+                "gini": f"{phase3[-1]['Gini_B']:.2f}"
+            }
         }
     ]
 
     return phases
 
 def generate_conclusion(history):
+    """Generate a conclusion based on the simulation results"""
+    first_period = history[0]
     last_period = history[-1]
-    if last_period['Gini_B'] < history[0]['Gini_B']:
-        return "The community's economic system has shown significant improvements in wealth equality, with a reduction in inequality and increased overall wealth."
-    else:
-        return "While the community's total wealth has increased, wealth inequality has persisted or worsened, indicating potential challenges in economic distribution."
+
+    # Calculate key changes
+    wealth_change = (last_period['TotalWealth_B'] - first_period['TotalWealth_B']) / first_period['TotalWealth_B']
+    inequality_change = last_period['Gini_B'] - first_period['Gini_B']
+    poverty_change = last_period['PovertyRate_B'] - first_period['PovertyRate_B']
+    resilience_change = last_period['CommunityResilience'] - first_period['CommunityResilience']
+
+    # Determine overall economic success
+    economic_success = "successful" if wealth_change > 0.1 and poverty_change < 0 else "moderately successful" if wealth_change > 0 and poverty_change <= 0 else "challenging"
+
+    # Determine equity outcome
+    equity_outcome = "more equitable" if inequality_change < -0.02 else "slightly more equitable" if inequality_change < 0 else "less equitable" if inequality_change > 0.02 else "about the same in terms of equity"
+
+    # Determine resilience outcome
+    resilience_outcome = "significantly more resilient" if resilience_change > 0.1 else "more resilient" if resilience_change > 0 else "less resilient" if resilience_change < -0.1 else "about the same in terms of resilience"
+
+    conclusion = f"The simulation demonstrates a {economic_success} implementation of a community-based economic system with local currency. Over {len(history)} weeks, the community became {equity_outcome} and {resilience_outcome}. "
+
+    # Add specific insights based on the data
+    if wealth_change > 0.2:
+        conclusion += f"Total wealth grew substantially by {wealth_change*100:.1f}%, indicating strong economic development. "
+
+    if poverty_change < -0.1:
+        conclusion += f"Poverty was reduced significantly from {first_period['PovertyRate_B']*100:.1f}% to {last_period['PovertyRate_B']*100:.1f}%. "
+
+    if inequality_change < -0.05:
+        conclusion += f"Wealth inequality decreased meaningfully, with the Gini coefficient falling from {first_period['Gini_B']:.2f} to {last_period['Gini_B']:.2f}. "
+
+    conclusion += "These results suggest that community currencies and cooperative economic structures can create positive economic outcomes when properly implemented."
+
+    return conclusion
 
 # --- API Endpoint ---
 @app.route('/run_simulation', methods=['POST'])

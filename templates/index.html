@@ -14,24 +14,81 @@
         <!-- Your existing HTML content will go here -->
         <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md">
             <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">📈 Cataclysm Studios Inc PMOVES Economy Simulation ⚖️</h1>
-            
+
             <form id="simParamsForm" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <fieldset class="border p-4 rounded-md">
-                    <legend class="text-lg font-semibold px-2">Simulation Setup</legend>
-                    <div>
-                        <label for="NUM_MEMBERS" class="block text-sm text-gray-700">Number of Members:</label>
-                        <input type="number" id="NUM_MEMBERS" name="NUM_MEMBERS" value="50" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <legend class="text-lg font-semibold px-2">Community Setup</legend>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label for="NUM_MEMBERS" class="block text-sm text-gray-700">Number of Members:</label>
+                            <input type="number" id="NUM_MEMBERS" name="NUM_MEMBERS" value="50" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="SIMULATION_WEEKS" class="block text-sm text-gray-700">Simulation Weeks:</label>
+                            <input type="number" id="SIMULATION_WEEKS" name="SIMULATION_WEEKS" value="156" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="INITIAL_WEALTH_MEAN_LOG" class="block text-sm text-gray-700">Initial Wealth Mean (log):</label>
+                            <input type="number" id="INITIAL_WEALTH_MEAN_LOG" name="INITIAL_WEALTH_MEAN_LOG" value="6.9" step="0.1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="INITIAL_WEALTH_SIGMA_LOG" class="block text-sm text-gray-700">Initial Wealth Std Dev (log):</label>
+                            <input type="number" id="INITIAL_WEALTH_SIGMA_LOG" name="INITIAL_WEALTH_SIGMA_LOG" value="0.6" step="0.1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
                     </div>
-                    <!-- Add more simulation parameters as needed -->
                 </fieldset>
-                
-                <div class="flex items-end justify-center">
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+
+                <fieldset class="border p-4 rounded-md">
+                    <legend class="text-lg font-semibold px-2">Economic Parameters</legend>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label for="WEEKLY_INCOME_AVG" class="block text-sm text-gray-700">Weekly Income Avg ($):</label>
+                            <input type="number" id="WEEKLY_INCOME_AVG" name="WEEKLY_INCOME_AVG" value="150" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="WEEKLY_FOOD_BUDGET_AVG" class="block text-sm text-gray-700">Weekly Food Budget Avg ($):</label>
+                            <input type="number" id="WEEKLY_FOOD_BUDGET_AVG" name="WEEKLY_FOOD_BUDGET_AVG" value="75" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="PERCENT_SPEND_INTERNAL_AVG" class="block text-sm text-gray-700">Internal Spending % (Avg):</label>
+                            <input type="number" id="PERCENT_SPEND_INTERNAL_AVG" name="PERCENT_SPEND_INTERNAL_AVG" value="0.6" step="0.05" min="0" max="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="GROTOKEN_REWARD_PER_WEEK_AVG" class="block text-sm text-gray-700">GroToken Reward/Week (Avg):</label>
+                            <input type="number" id="GROTOKEN_REWARD_PER_WEEK_AVG" name="GROTOKEN_REWARD_PER_WEEK_AVG" value="0.5" step="0.1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="border p-4 rounded-md">
+                    <legend class="text-lg font-semibold px-2">Cooperative Benefits</legend>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label for="GROUP_BUY_SAVINGS_PERCENT" class="block text-sm text-gray-700">Group Buy Savings %:</label>
+                            <input type="number" id="GROUP_BUY_SAVINGS_PERCENT" name="GROUP_BUY_SAVINGS_PERCENT" value="0.15" step="0.05" min="0" max="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="LOCAL_PRODUCTION_SAVINGS_PERCENT" class="block text-sm text-gray-700">Local Production Savings %:</label>
+                            <input type="number" id="LOCAL_PRODUCTION_SAVINGS_PERCENT" name="LOCAL_PRODUCTION_SAVINGS_PERCENT" value="0.25" step="0.05" min="0" max="1" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="GROTOKEN_USD_VALUE" class="block text-sm text-gray-700">GroToken USD Value:</label>
+                            <input type="number" id="GROTOKEN_USD_VALUE" name="GROTOKEN_USD_VALUE" value="2" step="0.5" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="WEEKLY_COOP_FEE_B" class="block text-sm text-gray-700">Weekly Coop Fee ($):</label>
+                            <input type="number" id="WEEKLY_COOP_FEE_B" name="WEEKLY_COOP_FEE_B" value="1" step="0.5" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="flex items-end justify-center col-span-1 md:col-span-2">
+                    <button type="submit" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-lg font-medium">
                         Run Simulation
                     </button>
                 </div>
             </form>
-            
+
             <div id="results" class="mt-8">
                 <!-- Simulation results will be displayed here -->
                 <p class="text-center text-gray-500">Run the simulation to see results</p>
