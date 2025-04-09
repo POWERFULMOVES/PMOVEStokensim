@@ -9,6 +9,13 @@ This application simulates economic systems with a focus on token-based economie
 - Visualize results through interactive charts
 - Analyze key economic metrics like wealth distribution and inequality
 
+## Getting Started
+
+1. Launch the application using one of the methods described below
+2. Adjust simulation parameters as needed
+3. Click "Run Simulation" to start
+4. View and analyze the results
+
 ## Running the Application
 
 ### Option 1: Run with Docker (Recommended)
@@ -93,6 +100,30 @@ This is the most reliable method for running the application on Windows systems.
 
 This method is recommended if you want faster dependency installation.
 
+## Distribution
+
+To distribute this application to other users:
+
+### Option 1: Share the Repository (Recommended)
+
+1. Share the entire repository with users
+2. Users can run the application using one of the methods described above
+3. The `setup_and_run.bat` or `setup_with_uv.bat` scripts make it easy for Windows users
+
+### Option 2: Create a Distribution Package
+
+1. Run the `create_distribution.bat` script
+2. This will create a clean distribution package in the `dist/Economic_Simulation_Distribution/` folder
+3. Share this folder with users
+4. Users can run the application by executing the `setup_and_run.bat` script
+
+### System Requirements
+
+- Windows 10 or later
+- Python 3.8 or later
+- 4GB RAM minimum
+- 100MB free disk space
+
 ## Project Structure
 
 - `flask_backend.py` - The Flask backend that handles the simulation logic
@@ -100,9 +131,25 @@ This method is recommended if you want faster dependency installation.
 - `static/` - Static assets (CSS, JavaScript, images)
 - `templates/` - HTML templates
 - `Dockerfile` and `docker-compose.yml` - Docker configuration files
-- `build_app.py` - Script to build a standalone executable
-- `create_installer.iss` - Inno Setup script for creating a Windows installer
+- `setup_and_run.bat` - Script to set up a virtual environment and run the application
+- `setup_with_uv.bat` - Script to set up a virtual environment using uv and run the application
+- `create_distribution.bat` - Script to create a clean distribution package
+
+## Troubleshooting
+
+If you encounter issues running the application:
+
+1. **Python not found**: Make sure Python is installed and in your PATH
+2. **Missing dependencies**: Try running `pip install -r requirements.txt` manually
+3. **Application doesn't start**: Check if any log files were created in the application directory
+4. **Blank window**: The Flask server might not be starting correctly. Try running the application from a command prompt to see any error messages.
 
 ## License
 
 See the [LICENSE.txt](LICENSE.txt) file for details.
+
+## Contact
+
+For support or questions, please contact Cataclysm Studios.
+
+© 2025 Cataclysm Studios Inc. All rights reserved.
