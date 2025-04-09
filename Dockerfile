@@ -3,11 +3,12 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies required for pywebview
+# Install system dependencies required for pywebview and healthcheck
 RUN apt-get update && apt-get install -y \
     libgtk-3-0 \
     libwebkit2gtk-4.0-37 \
     xvfb \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

@@ -81,31 +81,17 @@ This option automatically creates a virtual environment and installs all depende
 2. Double-click the `setup_and_run.bat` file
 3. The application will set up everything and start automatically
 
-### Option 4: Build Executable
+This is the most reliable method for running the application on Windows systems.
 
-To build a standalone executable:
+### Option 4: Setup with uv (Faster Installation)
 
-1. Install the required dependencies:
+[uv](https://github.com/astral-sh/uv) is a much faster alternative to pip for installing Python packages.
 
-```
-pip install -r requirements.txt
-```
+1. Make sure Python is installed and in your PATH
+2. Double-click the `setup_with_uv.bat` file
+3. The script will install uv if needed, create a virtual environment, and install dependencies
 
-2. Run the build script:
-
-```
-python build_app.py
-```
-
-3. The executable will be created in the `dist` directory
-
-4. For a more reliable distribution, use:
-
-```
-python build_complete.py
-```
-
-This creates a directory-based distribution in `dist/Economic_Simulation/` that can be shared with users.
+This method is recommended if you want faster dependency installation.
 
 ## Project Structure
 
