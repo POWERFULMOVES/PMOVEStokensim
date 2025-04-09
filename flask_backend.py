@@ -1,8 +1,13 @@
+# Write a startup log immediately
+with open('flask_startup_log.txt', 'w') as f:
+    f.write('Flask backend starting...\n')
+
 import os
 import sys
 import random
 import numpy as np
 import pandas as pd
+import traceback
 from flask import Flask, request, jsonify, send_from_directory
 import logging
 
@@ -16,10 +21,18 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 # --- Flask App Setup ---
-app = Flask(__name__,
-            static_folder=resource_path('static'),
-            template_folder=resource_path('templates'))
-logging.basicConfig(level=logging.INFO) # Basic logging
+try:
+    app = Flask(__name__,
+                static_folder=resource_path('static'),
+                template_folder=resource_path('templates'))
+    with open('flask_startup_log.txt', 'a') as f:
+        f.write('Flask app created successfully\n')
+    logging.basicConfig(level=logging.INFO) # Basic logging
+except Exception as e:
+    error_msg = f"Flask app creation error: {e}\n{traceback.format_exc()}"
+    with open('flask_error_log.txt', 'w') as f:
+        f.write(error_msg)
+    raise
 
 # --- Simulation Parameters (Copied from previous Python script) ---
 DEFAULT_PARAMS = {

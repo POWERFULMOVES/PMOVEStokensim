@@ -1,9 +1,14 @@
+# Write a startup log immediately
+with open('startup_log.txt', 'w') as f:
+    f.write('Application starting...\n')
+
 import os
 import sys
 import webbrowser
 import threading
 import time
 import socket
+import traceback
 from flask import Flask
 from flask_backend import app
 import webview
@@ -63,9 +68,23 @@ def main():
         webview.start()
 
     except Exception as e:
-        logging.error(f"Application error: {e}")
+        error_msg = f"Application error: {e}\n{traceback.format_exc()}"
+        logging.error(error_msg)
+
+        # Also write to a separate error log file that's easier to find
+        with open('error_log.txt', 'w') as f:
+            f.write(error_msg)
+
         print(f"Error: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':
-    main()
+    try:
+        with open('startup_log.txt', 'a') as f:
+            f.write('Calling main function...\n')
+        main()
+    except Exception as e:
+        error_msg = f"Fatal error before main: {e}\n{traceback.format_exc()}"
+        with open('fatal_error_log.txt', 'w') as f:
+            f.write(error_msg)
+        sys.exit(1)
