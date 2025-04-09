@@ -73,7 +73,15 @@ python launcher.py
 
 5. The application should open in a desktop window
 
-### Option 3: Build Executable
+### Option 3: Easy Setup with Virtual Environment (Recommended for Windows)
+
+This option automatically creates a virtual environment and installs all dependencies:
+
+1. Make sure Python is installed and in your PATH
+2. Double-click the `setup_and_run.bat` file
+3. The application will set up everything and start automatically
+
+### Option 4: Build Executable
 
 To build a standalone executable:
 
@@ -90,6 +98,14 @@ python build_app.py
 ```
 
 3. The executable will be created in the `dist` directory
+
+4. For a more reliable distribution, use:
+
+```
+python build_complete.py
+```
+
+This creates a directory-based distribution in `dist/Economic_Simulation/` that can be shared with users.
 
 ## Project Structure
 
