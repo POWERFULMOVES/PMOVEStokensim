@@ -384,7 +384,7 @@
                 displayAdvancedMetrics(final_state, history); // Pass history for potential charts
 
                 // 6. Advanced Analytics (Placeholders)
-                populateAdvancedAnalyticsPlaceholders(final_state);
+                populateAdvancedAnalyticsPlaceholders(final_state, results);
 
                 // Make results sections visible
                 resultsArea.classList.remove('hidden');
@@ -546,8 +546,11 @@
             }
         }
 
-        function populateAdvancedAnalyticsPlaceholders(final_state) {
+        function populateAdvancedAnalyticsPlaceholders(final_state, results) {
              if (!final_state) return;
+             if (!results || !results.summary) {
+                 console.warn('Results or summary not available for advanced analytics');
+             }
              // Populate simple values where available
              if (velocityValueSpan) velocityValueSpan.textContent = final_state.EconomicVelocity?.toFixed(2) ?? 'N/A';
              if (sustainabilityValueSpan) sustainabilityValueSpan.textContent = final_state.SustainabilityScore?.toFixed(2) ?? 'N/A';
@@ -564,12 +567,16 @@
              updateElement('engagementFlow', 'Requires Flow Viz');
 
              // Populate Phases Timeline (basic text version)
-             const phaseAnalysis = results?.summary?.phase_analysis ?? []; // Use results from outer scope
+             let phaseAnalysis = [];
+             if (results && results.summary && Array.isArray(results.summary.phase_analysis)) {
+                 phaseAnalysis = results.summary.phase_analysis;
+             }
+
              if (phasesTimelineDiv && phaseAnalysis.length > 0) {
                   phasesTimelineDiv.innerHTML = phaseAnalysis.map(phase => `
                      <div class="mb-3 p-2 border-l-4 border-blue-300">
-                         <p class="font-semibold text-sm">${phase.type} (${phase.period})</p>
-                         <p class="text-xs text-gray-600">${phase.characteristics}</p>
+                         <p class="font-semibold text-sm">${phase.type || 'Phase'} (${phase.period || 'Unknown'})</p>
+                         <p class="text-xs text-gray-600">${phase.characteristics || 'No details available'}</p>
                      </div>
                   `).join('');
              } else if (phasesTimelineDiv) {
