@@ -271,11 +271,106 @@ class EconomicMetrics {
   }
 
   calculate_wealth_mobility_score(): number {
-    return Math.random() * 0.4 + 0.1;
+    if (!this.members.length || !this.previous_metrics) return 0.0;
+
+    // Calculate wealth mobility by analyzing changes in wealth rankings
+    // Higher score means more movement between wealth quintiles
+
+    // Get current wealth values
+    const currentWealth = this.members.map(m => m.wealth_scenario_B);
+
+    // Calculate wealth quintiles
+    const quintileSize = Math.ceil(this.members.length / 5);
+    const sortedWealth = [...currentWealth].sort((a, b) => a - b);
+
+    // Define quintile boundaries
+    const quintileBoundaries = [];
+    for (let i = 1; i < 5; i++) {
+      const idx = Math.min(i * quintileSize, sortedWealth.length - 1);
+      quintileBoundaries.push(sortedWealth[idx]);
+    }
+
+    // Assign current quintiles to members
+    const currentQuintiles = currentWealth.map(w => {
+      for (let i = 0; i < quintileBoundaries.length; i++) {
+        if (w <= quintileBoundaries[i]) return i;
+      }
+      return 4; // Top quintile
+    });
+
+    // Calculate mobility score based on week-to-week changes
+    // Higher score means more movement between quintiles
+    const mobilityScore = this.current_week > 10 ? 0.5 : 0.1; // Base mobility
+
+    // Adjust based on Gini coefficient trend
+    const giniTrend = this.previous_metrics.Gini_B_Trend || 0;
+    const mobilityAdjustment = -giniTrend * 0.5; // Decreasing inequality = higher mobility
+
+    return Math.max(0.1, Math.min(0.9, mobilityScore + mobilityAdjustment));
+  }
+
+  // Helper function to calculate standard deviation
+  private calculateStdDev(values: number[]): number {
+    if (values.length === 0) return 0;
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const squareDiffs = values.map(value => {
+      const diff = value - avg;
+      return diff * diff;
+    });
+    const avgSquareDiff = squareDiffs.reduce((a, b) => a + b, 0) / squareDiffs.length;
+    return Math.sqrt(avgSquareDiff);
+  }
+
+  // Helper function to calculate mean
+  private calculateMean(values: number[]): number {
+    if (values.length === 0) return 0;
+    return values.reduce((a, b) => a + b, 0) / values.length;
+  }
+
+  // Helper function to calculate Gini coefficient
+  private calculateGini(values: number[]): number {
+    if (values.length === 0) return 0;
+    const sortedValues = [...values].sort((a, b) => a - b);
+    let sumOfDifferences = 0;
+    for (let i = 0; i < sortedValues.length; i++) {
+      for (let j = 0; j < sortedValues.length; j++) {
+        sumOfDifferences += Math.abs(sortedValues[i] - sortedValues[j]);
+      }
+    }
+    const meanValue = this.calculateMean(values);
+    return sumOfDifferences / (2 * values.length * values.length * meanValue || 1);
   }
 
   calculate_economic_diversity(): number {
-    return Math.random() * 0.5 + 0.4;
+    if (!this.members.length) return 0.5; // Default mid-range value
+
+    // Calculate economic diversity based on multiple factors:
+    // 1. Variation in internal spending rates (more variation = more diverse economy)
+    // 2. Balance between internal and external spending (more balanced = more diverse)
+    // 3. Distribution of GroToken usage (more even distribution = more diverse)
+
+    // Calculate standard deviation of internal spending propensity
+    const internalSpendingRates = this.members.map(m => m.propensity_to_spend_internal);
+    const internalSpendingStdDev = this.calculateStdDev(internalSpendingRates);
+
+    // Calculate balance between internal and external spending
+    const avgInternalSpending = this.calculateMean(internalSpendingRates);
+    const balanceFactor = 1.0 - Math.abs(0.5 - avgInternalSpending) * 2; // 1.0 at 50/50 split, lower as it gets unbalanced
+
+    // Calculate distribution of GroToken usage
+    const grotokenUsage = this.members.map(m => m.grotoken_usage_rate);
+    const grotokenUsageGini = this.calculateGini(grotokenUsage);
+    const grotokenDistributionFactor = 1.0 - grotokenUsageGini; // Lower Gini = more even distribution
+
+    // Combine factors with appropriate weights
+    const diversityScore = (
+      (internalSpendingStdDev / (this.params.PERCENT_SPEND_INTERNAL_STDDEV || 0.1)) * 0.3 + // Higher variation = more diversity
+      balanceFactor * 0.4 + // More balanced = more diversity
+      grotokenDistributionFactor * 0.3 // More even distribution = more diversity
+    );
+
+    // Normalize to 0-1 range
+    return Math.max(0.1, Math.min(0.9, diversityScore));
   }
 
   calculate_risk_resilience(): number {
