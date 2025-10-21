@@ -8,10 +8,12 @@
 
 import os
 import sys
+import math
 import random
 import numpy as np
 import pandas as pd
 import traceback
+from typing import Any, Dict
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import logging
@@ -43,6 +45,204 @@ DEFAULT_PARAMS = {
     "GROTOKEN_USD_VALUE": 2.0,
     "WEEKLY_COOP_FEE_B": 1.0,
 }
+
+VALIDATION_RULES: Dict[str, Dict[str, Any]] = {
+    "NUM_MEMBERS": {
+        "type": int,
+        "min": 1,
+        "message": "Number of members must be a positive integer.",
+    },
+    "SIMULATION_WEEKS": {
+        "type": int,
+        "min": 1,
+        "message": "Simulation weeks must be a positive integer.",
+    },
+    "INITIAL_WEALTH_MEAN_LOG": {
+        "type": float,
+        "message": "Initial wealth log mean must be a finite number.",
+    },
+    "INITIAL_WEALTH_SIGMA_LOG": {
+        "type": float,
+        "min": 0,
+        "message": "Initial wealth log sigma must be non-negative.",
+    },
+    "WEEKLY_FOOD_BUDGET_AVG": {
+        "type": float,
+        "min": 0,
+        "message": "Average weekly food budget must be at least 0.",
+    },
+    "WEEKLY_FOOD_BUDGET_STDDEV": {
+        "type": float,
+        "min": 0,
+        "message": "Weekly food budget standard deviation must be non-negative.",
+    },
+    "MIN_WEEKLY_BUDGET": {
+        "type": float,
+        "min": 0,
+        "message": "Minimum weekly budget must be at least 0.",
+    },
+    "WEEKLY_INCOME_AVG": {
+        "type": float,
+        "min": 0,
+        "message": "Average weekly income must be at least 0.",
+    },
+    "WEEKLY_INCOME_STDDEV": {
+        "type": float,
+        "min": 0,
+        "message": "Weekly income standard deviation must be non-negative.",
+    },
+    "MIN_WEEKLY_INCOME": {
+        "type": float,
+        "min": 0,
+        "message": "Minimum weekly income must be at least 0.",
+    },
+    "GROUP_BUY_SAVINGS_PERCENT": {
+        "type": float,
+        "min": 0,
+        "max": 1,
+        "message": "Group buy savings percent must be between 0 and 1.",
+    },
+    "LOCAL_PRODUCTION_SAVINGS_PERCENT": {
+        "type": float,
+        "min": 0,
+        "max": 1,
+        "message": "Local production savings percent must be between 0 and 1.",
+    },
+    "PERCENT_SPEND_INTERNAL_AVG": {
+        "type": float,
+        "min": 0,
+        "max": 1,
+        "message": "Average percent spent internally must be between 0 and 1.",
+    },
+    "PERCENT_SPEND_INTERNAL_STDDEV": {
+        "type": float,
+        "min": 0,
+        "max": 1,
+        "message": "Percent spend internal standard deviation must be between 0 and 1.",
+    },
+    "GROTOKEN_REWARD_PER_WEEK_AVG": {
+        "type": float,
+        "min": 0,
+        "message": "Average GroToken reward per week must be at least 0.",
+    },
+    "GROTOKEN_REWARD_STDDEV": {
+        "type": float,
+        "min": 0,
+        "message": "GroToken reward standard deviation must be non-negative.",
+    },
+    "GROTOKEN_USD_VALUE": {
+        "type": float,
+        "min": 0,
+        "message": "GroToken USD value must be at least 0.",
+    },
+    "WEEKLY_COOP_FEE_B": {
+        "type": float,
+        "min": 0,
+        "message": "Weekly co-op fee must be at least 0.",
+    },
+    "description": {
+        "type": str,
+        "required": False,
+        "message": "Description must be text.",
+    },
+}
+
+
+class ParameterValidationError(ValueError):
+    """Custom exception raised when incoming simulation parameters are invalid."""
+
+    def __init__(self, errors: Dict[str, str]):
+        self.errors = errors
+        message = "; ".join(errors.values()) if errors else "Invalid parameters."
+        super().__init__(message)
+
+
+def _coerce_numeric(value: Any, expected_type: type) -> float:
+    """Coerce JSON values into numeric types while rejecting invalid inputs."""
+
+    if value is None:
+        raise ValueError("Value is missing.")
+    if isinstance(value, bool):
+        raise ValueError("Boolean values are not permitted for numeric fields.")
+    if isinstance(value, (list, tuple, dict)):
+        raise TypeError("Complex JSON structures are not permitted for numeric fields.")
+
+    if isinstance(value, (int, float)):
+        number = float(value)
+    elif isinstance(value, str):
+        stripped = value.strip()
+        if stripped == "":
+            raise ValueError("Value cannot be empty.")
+        number = float(stripped)
+    else:
+        raise TypeError("Unsupported value type.")
+
+    if not math.isfinite(number):
+        raise ValueError("Value must be finite.")
+
+    if expected_type is int:
+        if not number.is_integer():
+            raise ValueError("Value must be an integer.")
+        return int(number)
+
+    return float(number)
+
+
+def validate_simulation_params(raw_params: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and coerce incoming simulation parameters.
+
+    Returns a dictionary containing sanitized values for all recognised parameters.
+    Raises ParameterValidationError if any field is invalid.
+    """
+
+    errors: Dict[str, str] = {}
+    cleaned: Dict[str, Any] = {}
+    raw_params = raw_params or {}
+
+    for key, rule in VALIDATION_RULES.items():
+        required = rule.get("required", True)
+        has_value = key in raw_params
+        if not has_value and not required:
+            continue
+
+        if has_value:
+            value = raw_params[key]
+        elif key in DEFAULT_PARAMS:
+            value = DEFAULT_PARAMS[key]
+        else:
+            value = None
+
+        try:
+            expected_type = rule.get("type", float)
+            if expected_type in (int, float):
+                coerced = _coerce_numeric(value, expected_type)
+            elif expected_type is str:
+                if value is None:
+                    raise ValueError("Value cannot be empty.")
+                coerced = str(value)
+            else:
+                raise TypeError(f"Unsupported validation type for {key}.")
+
+            min_value = rule.get("min")
+            max_value = rule.get("max")
+            if min_value is not None and coerced < min_value:
+                raise ValueError("Value is below the minimum allowed.")
+            if max_value is not None and coerced > max_value:
+                raise ValueError("Value exceeds the maximum allowed.")
+
+            cleaned[key] = coerced
+        except (TypeError, ValueError) as exc:
+            errors[key] = rule.get("message", f"Invalid value for {key}.")
+            app.logger.debug(f"Validation failed for {key}: {exc}")
+
+    extra_keys = [key for key in raw_params.keys() if key not in VALIDATION_RULES]
+    if extra_keys:
+        errors["__all__"] = f"Unsupported parameters provided: {', '.join(sorted(extra_keys))}."
+
+    if errors:
+        raise ParameterValidationError(errors)
+
+    return cleaned
 
 # --- Helper Functions ---
 def calculate_gini(wealth_distribution):
@@ -371,8 +571,13 @@ def generate_conclusion(history):
 
 
 # --- Core Simulation Function (Modified to return summary/events) ---
-def run_simulation(params):
+def run_simulation(params, *, validated=False):
     """ Runs the economic comparison simulation with given parameters. """
+    if not validated:
+        params = validate_simulation_params(params)
+    else:
+        params = dict(params or {})
+
     app.logger.info(f"--- Running Simulation with params: {params.get('description', 'Custom Params')} ---")
     sim_params = DEFAULT_PARAMS.copy()
     sim_params.update(params)
@@ -460,10 +665,16 @@ def run_simulation(params):
 def handle_simulation():
     if not request.is_json: return jsonify({"error": "Request must be JSON"}), 400
     params = request.get_json()
+    if params is None:
+        return jsonify({"error": "Request body cannot be empty."}), 400
     app.logger.info(f"Received request with params: {params}")
     try:
-        simulation_results = run_simulation(params)
+        validated_params = validate_simulation_params(params)
+        simulation_results = run_simulation(validated_params, validated=True)
         return jsonify(simulation_results)
+    except ParameterValidationError as validation_error:
+         app.logger.warning(f"Validation error: {validation_error.errors}")
+         return jsonify({"errors": validation_error.errors}), 400
     except ValueError as ve:
          app.logger.error(f"Simulation Value Error: {ve}", exc_info=True)
          return jsonify({"error": str(ve)}), 400

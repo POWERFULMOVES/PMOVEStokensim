@@ -1,4 +1,154 @@
 // Main JavaScript for the Economic Simulation application
+
+const SIM_PARAM_RULES = {
+    NUM_MEMBERS: { type: 'int', min: 1, message: 'Number of members must be a positive integer.' },
+    SIMULATION_WEEKS: { type: 'int', min: 1, message: 'Simulation weeks must be a positive integer.' },
+    INITIAL_WEALTH_MEAN_LOG: { type: 'float', message: 'Initial wealth log mean must be a valid number.' },
+    INITIAL_WEALTH_SIGMA_LOG: { type: 'float', min: 0, message: 'Initial wealth log sigma must be non-negative.' },
+    WEEKLY_INCOME_AVG: { type: 'float', min: 0, message: 'Average weekly income must be at least 0.' },
+    WEEKLY_FOOD_BUDGET_AVG: { type: 'float', min: 0, message: 'Average weekly food budget must be at least 0.' },
+    PERCENT_SPEND_INTERNAL_AVG: { type: 'float', min: 0, max: 1, message: 'Average percent spent internally must be between 0 and 1.' },
+    GROUP_BUY_SAVINGS_PERCENT: { type: 'float', min: 0, max: 1, message: 'Group buy savings percent must be between 0 and 1.' },
+    LOCAL_PRODUCTION_SAVINGS_PERCENT: { type: 'float', min: 0, max: 1, message: 'Local production savings percent must be between 0 and 1.' },
+    GROTOKEN_REWARD_PER_WEEK_AVG: { type: 'float', min: 0, message: 'Average GroToken reward must be at least 0.' },
+    GROTOKEN_USD_VALUE: { type: 'float', min: 0, message: 'GroToken USD value must be at least 0.' },
+    WEEKLY_COOP_FEE_B: { type: 'float', min: 0, message: 'Weekly co-op fee must be at least 0.' },
+};
+
+function clearFormErrors() {
+    const formElement = document.getElementById('simParamsForm');
+    if (!formElement) return;
+
+    const existingSummary = document.getElementById('formErrorSummary');
+    if (existingSummary) {
+        existingSummary.remove();
+    }
+
+    formElement.querySelectorAll('.field-error').forEach((el) => el.remove());
+    formElement.querySelectorAll('input').forEach((input) => {
+        input.classList.remove('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+    });
+}
+
+function displayFormErrors(errors) {
+    const formElement = document.getElementById('simParamsForm');
+    if (!formElement || !errors) return;
+
+    const messages = [];
+    Object.entries(errors).forEach(([field, message]) => {
+        if (field === '__all__') {
+            messages.push(message);
+            return;
+        }
+
+        const input = document.getElementById(field);
+        if (!input) {
+            messages.push(message);
+            return;
+        }
+
+        input.classList.add('border-red-500', 'focus:border-red-500', 'focus:ring-red-500');
+        const errorMessage = document.createElement('p');
+        errorMessage.className = 'field-error text-red-600 text-xs mt-1';
+        errorMessage.textContent = message;
+
+        const descriptor = input.parentElement?.querySelector('.param-desc');
+        if (descriptor) {
+            descriptor.insertAdjacentElement('beforebegin', errorMessage);
+        } else {
+            input.insertAdjacentElement('afterend', errorMessage);
+        }
+    });
+
+    const summaryMessages = Array.from(new Set([
+        ...messages,
+        ...Object.entries(errors)
+            .filter(([field]) => field !== '__all__')
+            .map(([, message]) => message),
+    ]));
+
+    if (summaryMessages.length === 0) return;
+
+    let summaryContainer = document.getElementById('formErrorSummary');
+    if (!summaryContainer) {
+        summaryContainer = document.createElement('div');
+        summaryContainer.id = 'formErrorSummary';
+        summaryContainer.className = 'md:col-span-2';
+        formElement.prepend(summaryContainer);
+    }
+
+    summaryContainer.innerHTML = `
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded">
+            <p class="font-semibold">Please correct the highlighted fields:</p>
+            <ul class="list-disc pl-5 mt-2 text-sm">
+                ${summaryMessages.map((msg) => `<li>${msg}</li>`).join('')}
+            </ul>
+        </div>
+    `;
+}
+
+function collectFormValues(formElement) {
+    const formData = new FormData(formElement);
+    const params = {};
+    for (const [key, value] of formData.entries()) {
+        params[key] = value;
+    }
+    return params;
+}
+
+function validateFormInputs(rawParams) {
+    const errors = {};
+    const sanitized = {};
+
+    Object.entries(SIM_PARAM_RULES).forEach(([key, rule]) => {
+        const value = rawParams[key];
+        const isRequired = rule.required !== false;
+        const hasValue =
+            value !== undefined &&
+            value !== null &&
+            !(typeof value === 'string' && value.trim() === '');
+
+        if (!hasValue) {
+            if (isRequired) {
+                errors[key] = rule.message;
+            }
+            return;
+        }
+
+        if (rule.type === 'int' || rule.type === 'float') {
+            const numericValue = typeof value === 'number' ? value : Number(String(value).trim());
+            if (!Number.isFinite(numericValue)) {
+                errors[key] = rule.message;
+                return;
+            }
+            if (rule.type === 'int' && !Number.isInteger(numericValue)) {
+                errors[key] = rule.message;
+                return;
+            }
+            if (rule.min !== undefined && numericValue < rule.min) {
+                errors[key] = rule.message;
+                return;
+            }
+            if (rule.max !== undefined && numericValue > rule.max) {
+                errors[key] = rule.message;
+                return;
+            }
+
+            sanitized[key] = rule.type === 'int' ? parseInt(numericValue, 10) : numericValue;
+        } else {
+            sanitized[key] = value;
+        }
+    });
+
+    Object.keys(rawParams).forEach((key) => {
+        if (!(key in sanitized) && !(key in errors)) {
+            const value = rawParams[key];
+            sanitized[key] = typeof value === 'string' ? value.trim() : value;
+        }
+    });
+
+    return { valid: Object.keys(errors).length === 0, errors, sanitized };
+}
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Economic Simulation Application initialized');
 
@@ -23,40 +173,72 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Function to run the simulation
 function runSimulation() {
-    const formData = new FormData(document.getElementById('simParamsForm'));
-    const params = {};
+    const formElement = document.getElementById('simParamsForm');
+    if (!formElement) return;
 
-    // Convert form data to JSON object
-    for (const [key, value] of formData.entries()) {
-        params[key] = isNaN(value) ? value : Number(value);
+    clearFormErrors();
+    const rawParams = collectFormValues(formElement);
+    const { valid, errors, sanitized } = validateFormInputs(rawParams);
+
+    if (!valid) {
+        displayFormErrors(errors);
+        return;
     }
 
-    // Show loading indicator
-    document.getElementById('results').innerHTML = '<div class="loader"></div><p class="text-center">Running simulation...</p>';
+    const resultsDiv = document.getElementById('results');
+    if (resultsDiv) {
+        resultsDiv.innerHTML = '<div class="loader"></div><p class="text-center">Running simulation...</p>';
+    }
 
-    // Call the API
     fetch('/run_simulation', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify(sanitized),
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+    .then(async response => {
+        const rawText = await response.text();
+        let data = {};
+        if (rawText) {
+            try {
+                data = JSON.parse(rawText);
+            } catch (parseError) {
+                console.warn('Failed to parse response JSON:', parseError);
+            }
         }
-        return response.json();
+
+        if (!response.ok) {
+            if (response.status === 400 && data && data.errors) {
+                throw { type: 'validation', errors: data.errors };
+            }
+            const message = data?.error || `Request failed with status ${response.status}`;
+            throw { type: 'error', message };
+        }
+
+        return data;
     })
     .then(data => {
+        clearFormErrors();
         displayResults(data);
     })
     .catch(error => {
-        document.getElementById('results').innerHTML = `
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-                <p>Error: ${error.message}</p>
-            </div>
-        `;
+        if (error && error.type === 'validation') {
+            displayFormErrors(error.errors);
+            if (resultsDiv) {
+                resultsDiv.innerHTML = '';
+            }
+            return;
+        }
+
+        const fallbackMessage = (error && error.message) ? error.message : 'An unexpected error occurred.';
+        if (resultsDiv) {
+            resultsDiv.innerHTML = `
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+                    <p>Error: ${fallbackMessage}</p>
+                </div>
+            `;
+        }
     });
 }
 
