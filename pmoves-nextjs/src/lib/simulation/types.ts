@@ -17,7 +17,8 @@ export interface SimulationParams {
   GROTOKEN_REWARD_STDDEV: number;
   GROTOKEN_USD_VALUE: number;
   WEEKLY_COOP_FEE_B: number;
-  [key: string]: number;
+  localEconomicActivities?: LocalEconomicActivity[]; // Explicitly defined
+  [key: string]: number | LocalEconomicActivity[] | undefined; // Allow string keys to be number, LocalEconomicActivity[] or undefined
 }
 
 export interface SimMember {
@@ -64,11 +65,6 @@ export interface WeeklyMetrics {
   InnovationIndex: number;
   SustainabilityScore: number;
   CommunityEngagement: number;
-  MarketEfficiency: number;
-  InnovationAdoption: number;
-  WealthMobilityScore: number;
-  EconomicDiversity: number;
-  RiskResilience: number;
   [key: string]: number | number[];
 }
 
@@ -137,6 +133,11 @@ export interface EconomicMetricsClass {
   calculate_innovation_index: () => number;
   calculate_sustainability_score: () => number;
   calculate_community_engagement: () => number;
+  calculate_market_efficiency: () => number;
+  calculate_innovation_adoption: () => number;
+  calculate_wealth_mobility_score: () => number;
+  calculate_economic_diversity: () => number;
+  calculate_risk_resilience: () => number;
   calculate_trends: (current_metrics: WeeklyMetrics) => Record<string, number>;
   calculate_market_efficiency: () => number;
   calculate_innovation_adoption: () => number;
@@ -144,4 +145,16 @@ export interface EconomicMetricsClass {
   calculate_economic_diversity: () => number;
   calculate_risk_resilience: () => number;
   calculate_advanced_metrics: () => Record<string, number>;
+}
+
+export interface LocalEconomicActivity {
+  id: string;
+  name: string;
+  type: string; // e.g., 'kombucha_production', 'group_buy'
+  startWeek: number;
+  endWeek?: number; // Optional end week for recurring activities
+  schedule: 'once' | 'weekly' | 'monthly';
+  params: any; // Specific parameters for the activity type
+  recentFinancialResults?: any; // To store results for narrative or dashboard
+  participants: string[]; // Array of member IDs
 }
