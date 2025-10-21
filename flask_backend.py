@@ -61,6 +61,7 @@ class SimMember:
         self.id = member_id
         self.wealth_scenario_A = max(0, initial_wealth)
         self.wealth_scenario_B = max(0, initial_wealth)
+        self.initial_wealth = self.wealth_scenario_B
         self.food_usd_balance = max(0, initial_wealth)
         self.grotoken_balance = 0.0
         self.weekly_food_budget = max(params["MIN_WEEKLY_BUDGET"],
@@ -74,7 +75,11 @@ class SimMember:
                                               params["WEEKLY_INCOME_STDDEV"]))
         # Add placeholders for advanced metrics if needed at member level
         self.internal_transaction_count = 0 # Example for market efficiency
-        self.grotoken_usage_rate = random.random() * 0.1 # Example for innovation adoption
+        self.last_internal_spend = 0.0
+        self.last_external_spend = 0.0
+        self.last_total_spend = 0.0
+        self.last_effective_internal_cost = 0.0
+        self.last_grotoken_reward = 0.0
 
 # --- Economic Metrics Class ---
 # (Copied exactly from flask_backend.txt - includes advanced metrics)
@@ -84,6 +89,16 @@ class EconomicMetrics:
         self.params = params
         self.previous_metrics = None
         self.current_week = 0 # Add week tracking
+        self.initial_wealth_percentiles = self._compute_percentile_ranks(
+            {member.id: getattr(member, 'initial_wealth', member.wealth_scenario_B) for member in members}
+        )
+
+    def _compute_percentile_ranks(self, values_by_member):
+        """Return percentile ranks (0-1) for a mapping of member ids to values."""
+        if not values_by_member:
+            return {}
+        series = pd.Series(values_by_member)
+        return series.rank(method='average', pct=True).to_dict()
 
     def calculate_metrics(self, wealth_A_list, wealth_B_list, week):
         self.current_week = week # Update current week
@@ -150,9 +165,24 @@ class EconomicMetrics:
         return np.mean([1 if w < poverty_line else 0 for w in wealth_list])
 
     def calculate_wealth_mobility(self):
-        # Placeholder: Avg GroToken value
-        if not self.members: return 0.0
-        return np.mean([m.grotoken_balance * self.params.get("GROTOKEN_USD_VALUE", 2.0) for m in self.members])
+        """Average absolute shift in each member's wealth percentile relative to their initial position.
+
+        Assumptions:
+            * Scenario B wealth represents the cooperative model's wealth distribution.
+            * Initial percentiles are captured at metrics initialization and treated as the baseline.
+            * Percentile ranks are computed with average ranking, yielding a 0-1 scale.
+        """
+        if not self.members:
+            return 0.0
+        current_percentiles = self._compute_percentile_ranks({m.id: m.wealth_scenario_B for m in self.members})
+        deltas = []
+        for member in self.members:
+            initial = self.initial_wealth_percentiles.get(member.id)
+            current = current_percentiles.get(member.id)
+            if initial is None or current is None:
+                continue
+            deltas.append(abs(current - initial))
+        return float(np.mean(deltas)) if deltas else 0.0
 
     def calculate_local_economy_strength(self):
         if not self.members: return 0.0
@@ -185,10 +215,20 @@ class EconomicMetrics:
         except: return 0.0
 
     def calculate_economic_velocity(self):
-        # Placeholder: Needs real transaction tracking
-        if not self.members: return 0.0
-        avg_internal_spend_propensity = np.mean([m.propensity_to_spend_internal for m in self.members])
-        return avg_internal_spend_propensity # Rough proxy
+        """Velocity of cooperative wealth measured as recent total spending over current wealth stock.
+
+        Assumptions:
+            * `last_total_spend` tracks the most recent week of Scenario B spending for each member.
+            * Scenario B wealth approximates the circulating money supply for the cooperative economy.
+            * Velocity equals total spending divided by total wealth; values above 1 imply faster turnover.
+        """
+        if not self.members:
+            return 0.0
+        total_spending = sum(getattr(m, 'last_total_spend', 0.0) for m in self.members)
+        total_wealth = sum(m.wealth_scenario_B for m in self.members)
+        if total_wealth <= 0:
+            return 0.0
+        return float(total_spending / total_wealth)
 
     def calculate_social_safety_net(self):
         poverty_line = self.params.get("WEEKLY_FOOD_BUDGET_AVG", 75) * 4
@@ -234,23 +274,82 @@ class EconomicMetrics:
 
     # --- Placeholder methods for unimplemented advanced metrics ---
     def calculate_market_efficiency(self):
-        # Placeholder: Needs transaction data
-        # Example: Use average internal spending count if available
-        avg_internal_tx = np.mean([getattr(m, 'internal_transaction_count', 0) for m in self.members])
-        return (avg_internal_tx / max(1, self.current_week)) * 10 # Scaled example
+        """Ratio of realised internal cooperative spending to the effective internal demand.
+
+        Assumptions:
+            * `last_internal_spend` stores the most recent internal outlay in Scenario B.
+            * `last_effective_internal_cost` captures the discounted internal cost members attempted to cover.
+            * Efficiency is capped at 1 and reflects liquidity limitations rather than behavioural change.
+        """
+        if not self.members:
+            return 0.0
+        realised_internal = sum(getattr(m, 'last_internal_spend', 0.0) for m in self.members)
+        effective_internal = sum(
+            getattr(m, 'last_effective_internal_cost', m.weekly_food_budget * m.propensity_to_spend_internal)
+            for m in self.members
+        )
+        if effective_internal <= 0:
+            return 0.0
+        efficiency = realised_internal / effective_internal
+        return float(max(0.0, min(1.0, efficiency)))
 
     def calculate_innovation_adoption(self):
-        # Placeholder: Needs data on feature usage
-        # Example: Use grotoken usage rate if available
-        return np.mean([getattr(m, 'grotoken_usage_rate', 0.1) for m in self.members]) # Default 0.1
+        """Share of cooperative wealth held in GroTokens, representing token adoption intensity.
+
+        Assumptions:
+            * GroToken balances are immediately valued using the configured USD conversion rate.
+            * Members with no GroTokens contribute zero to adoption.
+            * Adoption is measured at the community level (token value / total Scenario B wealth).
+        """
+        if not self.members:
+            return 0.0
+        token_value = sum(m.grotoken_balance for m in self.members) * self.params.get("GROTOKEN_USD_VALUE", 2.0)
+        total_wealth = sum(m.wealth_scenario_B for m in self.members)
+        if total_wealth <= 0:
+            return 0.0
+        return float(token_value / total_wealth)
 
     def calculate_wealth_mobility_score(self):
-        # Placeholder: Needs tracking wealth changes over time
-        return random.random() * 0.4 + 0.1 # Random value for now
+        """Average upward percentile movement relative to the initial Scenario B wealth distribution.
+
+        Assumptions:
+            * Only positive percentile changes contribute to the score; declines are treated as zero.
+            * Percentiles are identical to those used in :meth:`calculate_wealth_mobility`.
+            * Resulting score lies on a 0-1 scale where 0 indicates no upward mobility.
+        """
+        if not self.members:
+            return 0.0
+        current_percentiles = self._compute_percentile_ranks({m.id: m.wealth_scenario_B for m in self.members})
+        upward_changes = []
+        for member in self.members:
+            initial = self.initial_wealth_percentiles.get(member.id)
+            current = current_percentiles.get(member.id)
+            if initial is None or current is None:
+                continue
+            delta = current - initial
+            if delta > 0:
+                upward_changes.append(delta)
+        return float(np.mean(upward_changes)) if upward_changes else 0.0
 
     def calculate_economic_diversity(self):
-        # Placeholder: Needs data on income sources or spending categories
-        return random.random() * 0.5 + 0.4 # Random value
+        """Simpson diversity index (scaled 0-1) of internal vs. external cooperative spending.
+
+        Assumptions:
+            * Only the most recent week's internal and external spending are considered.
+            * Diversity is calculated on the share of spending by channel, scaled so perfect balance = 1.
+            * No spending defaults to zero diversity.
+        """
+        if not self.members:
+            return 0.0
+        internal_spend = sum(getattr(m, 'last_internal_spend', 0.0) for m in self.members)
+        external_spend = sum(getattr(m, 'last_external_spend', 0.0) for m in self.members)
+        total_spend = internal_spend + external_spend
+        if total_spend <= 0:
+            return 0.0
+        internal_share = internal_spend / total_spend
+        external_share = external_spend / total_spend
+        simpson = 1.0 - (internal_share ** 2 + external_share ** 2)
+        return float(max(0.0, min(1.0, simpson * 2)))
 
     def calculate_risk_resilience(self):
          # Placeholder: Could combine safety net and wealth stability
@@ -407,10 +506,20 @@ def run_simulation(params):
                 effective_cost_external = intended_spend_external
                 total_effective_cost = effective_cost_internal + effective_cost_external
                 actual_total_spending_B = min(total_effective_cost, member.food_usd_balance)
+                spend_ratio = (actual_total_spending_B / total_effective_cost) if total_effective_cost > 1e-6 else 0.0
+                actual_internal_spend = effective_cost_internal * spend_ratio
+                actual_external_spend = effective_cost_external * spend_ratio
                 member.food_usd_balance = max(0, member.food_usd_balance - actual_total_spending_B)
                 actual_coop_fee = min(sim_params["WEEKLY_COOP_FEE_B"], member.food_usd_balance)
                 member.food_usd_balance = max(0, member.food_usd_balance - actual_coop_fee)
+                member.last_internal_spend = actual_internal_spend
+                member.last_external_spend = actual_external_spend
+                member.last_effective_internal_cost = effective_cost_internal
+                member.last_total_spend = actual_total_spending_B + actual_coop_fee
+                if actual_internal_spend > 0:
+                    member.internal_transaction_count += 1
                 reward = max(0, random.gauss(sim_params["GROTOKEN_REWARD_PER_WEEK_AVG"], sim_params["GROTOKEN_REWARD_STDDEV"]))
+                member.last_grotoken_reward = reward
                 member.grotoken_balance += reward
                 current_wealth_B = member.food_usd_balance + (member.grotoken_balance * sim_params["GROTOKEN_USD_VALUE"])
                 member.wealth_scenario_B = current_wealth_B
