@@ -19,6 +19,7 @@ interface SimulationResultsProps {
 
 import { KeyMetricsTable } from './KeyMetricsTable';
 import { ValidationMetrics } from './ValidationMetrics';
+import { ExportDropdown, ExportSection } from './ExportButtons';
 
 export function SimulationResults({ results, presetName, simulationParams }: SimulationResultsProps) {
   if (!results) return null;
@@ -49,15 +50,20 @@ export function SimulationResults({ results, presetName, simulationParams }: Sim
     <div className="space-y-8">
       <Card>
         <CardHeader>
-          <CardTitle>
-            {summary.title}
-            {presetName && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                (Preset: {presetName})
-              </span>
-            )}
-          </CardTitle>
-          <CardDescription>{summary.overview}</CardDescription>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle>
+                {summary.title}
+                {presetName && (
+                  <span className="ml-2 text-sm font-normal text-muted-foreground">
+                    (Preset: {presetName})
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>{summary.overview}</CardDescription>
+            </div>
+            <ExportDropdown results={results} scenarioName={presetName || 'simulation'} />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
