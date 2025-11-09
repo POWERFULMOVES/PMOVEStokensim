@@ -1,0 +1,409 @@
+/**
+ * Contract Coordinator
+ * Unified coordinator for all PMOVES smart contract models
+ */
+
+import { GroTokenDistribution, GroTokenConfig } from './grotoken-model';
+import { FoodUSDModel, FoodUSDConfig } from './foodusd-model';
+import { GroupPurchaseModel, GroupPurchaseConfig } from './grouppurchase-model';
+import { GroVaultModel, GroVaultConfig } from './grovault-model';
+import { CoopGovernorModel, GovernanceConfig } from './coopgovernor-model';
+import { EventBus } from '../event-bus/event-bus';
+
+export interface ContractCoordinatorConfig {
+  groToken?: Partial<GroTokenConfig>;
+  foodUSD?: Partial<FoodUSDConfig>;
+  groupPurchase?: Partial<GroupPurchaseConfig>;
+  groVault?: Partial<GroVaultConfig>;
+  governance?: Partial<GovernanceConfig>;
+}
+
+export interface PopulationConfig {
+  addresses: string[];
+  initialWealth: number[];
+}
+
+export interface WeeklySimulationData {
+  week: number;
+  groTokenDistribution: ReturnType<typeof GroTokenDistribution.prototype.exportData>;
+  foodUSDSpending: ReturnType<typeof FoodUSDModel.prototype.exportData>;
+  groupPurchases: ReturnType<typeof GroupPurchaseModel.prototype.exportData>;
+  staking: ReturnType<typeof GroVaultModel.prototype.exportData>;
+  governance: ReturnType<typeof CoopGovernorModel.prototype.exportData>;
+}
+
+export class ContractCoordinator {
+  // Models
+  private groToken: GroTokenDistribution;
+  private foodUSD: FoodUSDModel;
+  private groupPurchase: GroupPurchaseModel;
+  private groVault: GroVaultModel;
+  private governance: CoopGovernorModel;
+
+  // Event bus for integration
+  private eventBus?: EventBus;
+
+  // State
+  private currentWeek: number = 0;
+  private initialized: boolean = false;
+
+  constructor(
+    config: ContractCoordinatorConfig = {},
+    eventBus?: EventBus
+  ) {
+    // Initialize models
+    this.groToken = new GroTokenDistribution(config.groToken);
+    this.foodUSD = new FoodUSDModel(config.foodUSD);
+    this.groupPurchase = new GroupPurchaseModel(this.foodUSD, config.groupPurchase);
+    this.groVault = new GroVaultModel(this.groToken, config.groVault);
+    this.governance = new CoopGovernorModel(this.groVault, config.governance);
+
+    this.eventBus = eventBus;
+
+    console.log('[ContractCoordinator] Initialized all contract models');
+  }
+
+  /**
+   * Initialize population and starting state
+   */
+  initialize(population: PopulationConfig): void {
+    if (this.initialized) {
+      console.warn('[ContractCoordinator] Already initialized');
+      return;
+    }
+
+    // Initialize GroToken holders
+    this.groToken.initializeHolders(population.addresses);
+
+    // Initialize FoodUSD holders
+    this.foodUSD.initializeHolders(population.addresses);
+
+    this.initialized = true;
+
+    console.log(
+      `[ContractCoordinator] Initialized with ${population.addresses.length} participants`
+    );
+
+    // Publish initialization event
+    if (this.eventBus) {
+      this.eventBus.publish(
+        'contracts.initialized.v1',
+        {
+          population: population.addresses.length,
+          timestamp: new Date().toISOString(),
+        },
+        'contract-coordinator'
+      );
+    }
+  }
+
+  /**
+   * Process a week of simulation
+   */
+  async processWeek(
+    week: number,
+    householdBudgets: Map<string, { foodBudget: number; totalIncome: number }>
+  ): Promise<void> {
+    this.currentWeek = week;
+
+    console.log(`\n[ContractCoordinator] Processing week ${week}`);
+
+    // 1. Distribute GroTokens
+    const tokenEvents = this.groToken.distributeWeekly(week);
+
+    console.log(`  - Distributed ${tokenEvents.length} GroToken events`);
+
+    // Publish token distribution events
+    if (this.eventBus) {
+      for (const event of tokenEvents) {
+        await this.eventBus.publish(
+          'finance.transactions.ingested.v1',
+          {
+            namespace: 'grotoken',
+            transactions: [
+              {
+                id: `grotoken-${week}-${event.recipient}`,
+                amount: event.dollarValue,
+                category: 'rewards',
+                date: new Date().toISOString(),
+                description: `GroToken distribution: ${event.amount} GRO`,
+                source: 'treasury',
+                destination: event.recipient,
+              },
+            ],
+            ingested_at: new Date().toISOString(),
+          },
+          'grotoken-distribution'
+        );
+      }
+    }
+
+    // 2. Fund FoodUSD accounts
+    for (const [address, budget] of householdBudgets) {
+      this.foodUSD.fundAccount(address, budget.foodBudget);
+    }
+
+    // 3. Process food spending (simulated)
+    for (const [address, budget] of householdBudgets) {
+      // Distribute food budget across categories
+      const groceries = budget.foodBudget * 0.6;
+      const preparedFood = budget.foodBudget * 0.25;
+      const dining = budget.foodBudget * 0.15;
+
+      this.foodUSD.processWeeklySpending(week, address, {
+        groceries,
+        prepared_food: preparedFood,
+        dining,
+      });
+    }
+
+    // 4. Accrue interest on staked positions
+    this.groVault.accrueInterest(week);
+
+    console.log(`[ContractCoordinator] Week ${week} processed`);
+  }
+
+  /**
+   * Create a group purchase order
+   */
+  createGroupOrder(
+    week: number,
+    creator: string,
+    category: string,
+    targetAmount: number
+  ): number {
+    return this.groupPurchase.createOrder(
+      week,
+      creator,
+      '0xSUPPLIER',
+      targetAmount,
+      category
+    );
+  }
+
+  /**
+   * Contribute to a group order
+   */
+  contributeToOrder(
+    week: number,
+    orderId: number,
+    contributor: string,
+    amount: number
+  ): boolean {
+    return this.groupPurchase.contribute(week, orderId, contributor, amount);
+  }
+
+  /**
+   * Stake GroTokens
+   */
+  stakeTokens(
+    week: number,
+    address: string,
+    amount: number,
+    durationYears: number
+  ): boolean {
+    return this.groVault.createLock(week, address, amount, durationYears);
+  }
+
+  /**
+   * Create a governance proposal
+   */
+  createProposal(
+    week: number,
+    proposer: string,
+    description: string,
+    category: string = 'general'
+  ): number {
+    return this.governance.createProposal(week, proposer, description, category);
+  }
+
+  /**
+   * Vote on a proposal
+   */
+  vote(
+    week: number,
+    proposalId: number,
+    voter: string,
+    votes: number,
+    support: boolean
+  ): boolean {
+    return this.governance.castVote(week, proposalId, voter, votes, support);
+  }
+
+  /**
+   * Get comprehensive statistics for all contracts
+   */
+  getComprehensiveStats(): {
+    groToken: ReturnType<typeof GroTokenDistribution.prototype.getStatistics>;
+    foodUSD: ReturnType<typeof FoodUSDModel.prototype.getStatistics>;
+    groupPurchase: ReturnType<typeof GroupPurchaseModel.prototype.getStatistics>;
+    staking: ReturnType<typeof GroVaultModel.prototype.getStatistics>;
+    governance: ReturnType<typeof CoopGovernorModel.prototype.getStatistics>;
+    summary: {
+      totalValueLocked: number;
+      totalSavingsGenerated: number;
+      participationRate: number;
+      governanceEngagement: number;
+    };
+  } {
+    const groTokenStats = this.groToken.getStatistics();
+    const foodUSDStats = this.foodUSD.getStatistics();
+    const groupPurchaseStats = this.groupPurchase.getStatistics();
+    const stakingStats = this.groVault.getStatistics();
+    const governanceStats = this.governance.getStatistics();
+
+    const totalValueLocked =
+      groTokenStats.totalValue + stakingStats.totalLockedValue;
+
+    const summary = {
+      totalValueLocked,
+      totalSavingsGenerated: groupPurchaseStats.totalSaved,
+      participationRate:
+        groTokenStats.totalHolders > 0
+          ? groTokenStats.activeParticipants / groTokenStats.totalHolders
+          : 0,
+      governanceEngagement: governanceStats.averageParticipationRate,
+    };
+
+    return {
+      groToken: groTokenStats,
+      foodUSD: foodUSDStats,
+      groupPurchase: groupPurchaseStats,
+      staking: stakingStats,
+      governance: governanceStats,
+      summary,
+    };
+  }
+
+  /**
+   * Calculate wealth impact for an address
+   */
+  calculateWealthImpact(address: string): {
+    groTokenValue: number;
+    stakingValue: number;
+    groupBuyingSavings: number;
+    totalImpact: number;
+    breakdown: {
+      tokens: ReturnType<typeof GroTokenDistribution.prototype.calculateWealthImpact>;
+      staking: ReturnType<typeof GroVaultModel.prototype.calculateWealthAccumulation>;
+      savings: ReturnType<typeof GroupPurchaseModel.prototype.getParticipantSavings>;
+    };
+  } {
+    const tokenImpact = this.groToken.calculateWealthImpact(address);
+    const stakingImpact = this.groVault.calculateWealthAccumulation(address);
+    const savingsImpact = this.groupPurchase.getParticipantSavings(address);
+
+    return {
+      groTokenValue: tokenImpact.dollarValue,
+      stakingValue: stakingImpact.totalValue * 2.0, // Assuming $2 per token
+      groupBuyingSavings: savingsImpact.totalSaved,
+      totalImpact:
+        tokenImpact.dollarValue +
+        stakingImpact.totalValue * 2.0 +
+        savingsImpact.totalSaved,
+      breakdown: {
+        tokens: tokenImpact,
+        staking: stakingImpact,
+        savings: savingsImpact,
+      },
+    };
+  }
+
+  /**
+   * Compare traditional economy vs token economy
+   */
+  compareEconomies(traditionalSpending: Record<string, number>): {
+    traditional: {
+      totalSpending: number;
+      noTokens: boolean;
+      noStaking: boolean;
+      noGroupBuying: boolean;
+    };
+    tokenEconomy: {
+      totalSpending: number;
+      tokenValue: number;
+      stakingValue: number;
+      groupSavings: number;
+      totalBenefit: number;
+    };
+    difference: {
+      absolute: number;
+      percentage: number;
+    };
+  } {
+    const stats = this.getComprehensiveStats();
+
+    const traditionalTotal = Object.values(traditionalSpending).reduce(
+      (sum, v) => sum + v,
+      0
+    );
+
+    const tokenEconomyTotal = stats.foodUSD.totalSpent;
+
+    const tokenValue = stats.groToken.totalValue;
+    const stakingValue = stats.staking.totalLockedValue;
+    const groupSavings = stats.groupPurchase.totalSaved;
+
+    const totalBenefit = tokenValue + stakingValue + groupSavings;
+
+    const difference = totalBenefit - (traditionalTotal - tokenEconomyTotal);
+    const percentageDiff =
+      traditionalTotal > 0 ? (difference / traditionalTotal) * 100 : 0;
+
+    return {
+      traditional: {
+        totalSpending: traditionalTotal,
+        noTokens: true,
+        noStaking: true,
+        noGroupBuying: true,
+      },
+      tokenEconomy: {
+        totalSpending: tokenEconomyTotal,
+        tokenValue,
+        stakingValue,
+        groupSavings,
+        totalBenefit,
+      },
+      difference: {
+        absolute: difference,
+        percentage: percentageDiff,
+      },
+    };
+  }
+
+  /**
+   * Export all data for analysis
+   */
+  exportAllData(): WeeklySimulationData {
+    return {
+      week: this.currentWeek,
+      groTokenDistribution: this.groToken.exportData(),
+      foodUSDSpending: this.foodUSD.exportData(),
+      groupPurchases: this.groupPurchase.exportData(),
+      staking: this.groVault.exportData(),
+      governance: this.governance.exportData(),
+    };
+  }
+
+  /**
+   * Get individual models (for direct access)
+   */
+  getModels() {
+    return {
+      groToken: this.groToken,
+      foodUSD: this.foodUSD,
+      groupPurchase: this.groupPurchase,
+      groVault: this.groVault,
+      governance: this.governance,
+    };
+  }
+
+  /**
+   * Get current week
+   */
+  getCurrentWeek(): number {
+    return this.currentWeek;
+  }
+}
+
+export default ContractCoordinator;
