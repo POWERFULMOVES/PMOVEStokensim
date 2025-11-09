@@ -1,0 +1,51 @@
+{
+  "name": "@pmoves/integrations",
+  "version": "1.0.0",
+  "description": "Integration layer for PMOVES ecosystem (Firefly-iii, DoX, Smart Contracts)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"**/*.{ts,json,md}\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "pmoves",
+    "integration",
+    "firefly-iii",
+    "dox",
+    "smart-contracts",
+    "event-bus",
+    "cooperative-economics"
+  ],
+  "author": "PMOVES Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "ethers": "^6.9.0",
+    "form-data": "^4.0.0",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
+    "events": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/jest": "^29.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.0",
+    "prettier": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
