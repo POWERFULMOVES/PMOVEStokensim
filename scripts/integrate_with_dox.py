@@ -28,7 +28,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 class DoXIntegration:
     """Integration client for PMOVES-DoX"""
 
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8484"):
+        """
+        Initialize DoX integration client.
+
+        Args:
+            base_url: DoX backend URL
+                     - CPU deployment: http://localhost:8484 (default)
+                     - GPU deployment: http://localhost:8000
+        """
         self.base_url = base_url.rstrip("/")
         self.session = requests.Session()
 
