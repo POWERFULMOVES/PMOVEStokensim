@@ -40,10 +40,14 @@ class EconomicMetrics:
         self.current_week = week
 
         wealth_quintiles_A = (
-            np.percentile(wealth_A_list, [20, 40, 60, 80]) if wealth_A_list else []
+            np.percentile(wealth_A_list, [20, 40, 60, 80]).tolist()
+            if wealth_A_list
+            else []
         )
         wealth_quintiles_B = (
-            np.percentile(wealth_B_list, [20, 40, 60, 80]) if wealth_B_list else []
+            np.percentile(wealth_B_list, [20, 40, 60, 80]).tolist()
+            if wealth_B_list
+            else []
         )
 
         metrics: Dict[str, object] = {
@@ -56,8 +60,8 @@ class EconomicMetrics:
             "MedianWealth_B": np.median(wealth_B_list) if wealth_B_list else 0,
             "TotalWealth_A": np.sum(wealth_A_list),
             "TotalWealth_B": np.sum(wealth_B_list),
-            "WealthQuintiles_A": wealth_quintiles_A.tolist(),
-            "WealthQuintiles_B": wealth_quintiles_B.tolist(),
+            "WealthQuintiles_A": wealth_quintiles_A,
+            "WealthQuintiles_B": wealth_quintiles_B,
             "Top10Percent_A": np.percentile(wealth_A_list, 90) if wealth_A_list else 0,
             "Top10Percent_B": np.percentile(wealth_B_list, 90) if wealth_B_list else 0,
             "Bottom10Percent_A": np.percentile(wealth_A_list, 10) if wealth_A_list else 0,
