@@ -29,6 +29,13 @@ Integration layer for the PMOVES ecosystem, connecting:
 - **Error Handling**: Automatic retry with exponential backoff
 - **Metrics**: Built-in metrics collection for monitoring
 
+### Contract Models
+- **GroToken Distribution**: Gaussian distribution model (μ=0.5, σ=0.2) for weekly token rewards
+- **FoodUSD Stablecoin**: 1:1 USD-pegged stablecoin for food spending tracking
+- **GroupPurchase**: 15% bulk buying savings mechanism with minimum participant requirements
+- **GroVault Staking**: Time-locked staking with quadratic voting power and interest accrual
+- **CoopGovernor**: Quadratic voting governance with quorum requirements
+
 ### Contract Event Listeners
 - **Real-time Events**: Listen to smart contract events via Web3
 - **Historical Replay**: Replay past events for data reconstruction
@@ -226,6 +233,250 @@ await contracts.replayHistoricalEvents(
   0,
   'latest'
 );
+```
+
+## Contract Models
+
+### ContractCoordinator
+
+The `ContractCoordinator` provides unified orchestration for all PMOVES contract models:
+
+```typescript
+import { ContractCoordinator } from './contracts/contract-coordinator';
+
+const coordinator = new ContractCoordinator({
+  groToken: {
+    distributionMean: 0.5,      // 0.5 tokens/week average
+    distributionStd: 0.2,        // Standard deviation
+    tokenValue: 2.0,             // $2 per token
+    participationRate: 0.20,     // 20% participate weekly
+  },
+  foodUSD: {
+    pegValue: 1.0,               // 1:1 USD peg
+    foodCategories: ['groceries', 'prepared_food', 'dining'],
+  },
+  groupPurchase: {
+    savingsRate: 0.15,           // 15% bulk buying savings
+    minimumParticipants: 5,      // Min 5 participants
+  },
+  groVault: {
+    baseInterestRate: 0.02,      // 2% APR base
+    lockBonusMultiplier: 0.5,    // +50% per year locked
+  },
+  governance: {
+    votingPeriodWeeks: 2,        // 2-week voting period
+    proposalThreshold: 100,      // Min 100 voting power
+  },
+});
+
+// Initialize population
+coordinator.initialize({
+  addresses: ['0xALICE', '0xBOB', '0xCHARLIE'],
+  initialWealth: [5000, 6000, 5500],
+});
+
+// Process weekly simulation
+await coordinator.processWeek(1, new Map([
+  ['0xALICE', { foodBudget: 150, totalIncome: 800 }],
+  ['0xBOB', { foodBudget: 200, totalIncome: 1000 }],
+]));
+```
+
+### GroToken Distribution
+
+Gaussian distribution model for weekly token rewards:
+
+```typescript
+import { GroTokenDistribution } from './contracts/grotoken-model';
+
+const groToken = new GroTokenDistribution({
+  distributionMean: 0.5,       // Mean: 0.5 tokens/week
+  distributionStd: 0.2,         // Std dev: 0.2
+  tokenValue: 2.0,              // $2 per token
+  participationRate: 0.20,      // 20% participate each week
+});
+
+groToken.initializeHolders(['0xALICE', '0xBOB']);
+
+// Distribute tokens weekly
+const events = groToken.distributeWeekly(1);
+console.log(`Distributed to ${events.length} participants`);
+
+// Check balance
+const balance = groToken.balanceOf('0xALICE');
+console.log(`Alice has ${balance} GRO tokens`);
+
+// Transfer tokens
+groToken.transfer('0xALICE', '0xBOB', 1.0);
+
+// Get statistics
+const stats = groToken.getStatistics();
+console.log(`Total distributed: ${stats.totalDistributed} GRO`);
+console.log(`Total value: $${stats.totalValue}`);
+```
+
+### FoodUSD Stablecoin
+
+1:1 USD-pegged stablecoin for food spending:
+
+```typescript
+import { FoodUSDModel } from './contracts/foodusd-model';
+
+const foodUSD = new FoodUSDModel({
+  pegValue: 1.0,
+  foodCategories: ['groceries', 'prepared_food', 'dining'],
+});
+
+foodUSD.initializeHolders(['0xALICE']);
+
+// Fund account
+foodUSD.fundAccount('0xALICE', 150);
+
+// Record spending
+foodUSD.recordSpending(1, '0xALICE', 'groceries', 80);
+foodUSD.recordSpending(1, '0xALICE', 'dining', 30);
+
+// Or process weekly spending
+foodUSD.processWeeklySpending(1, '0xALICE', {
+  groceries: 100,
+  prepared_food: 30,
+  dining: 20,
+});
+
+// Get statistics
+const stats = foodUSD.getStatistics();
+console.log(`Total spent: $${stats.totalSpent}`);
+console.log(`Groceries: $${stats.spendingByCategory.groceries}`);
+```
+
+### GroupPurchase
+
+15% bulk buying savings mechanism:
+
+```typescript
+import { GroupPurchaseModel } from './contracts/grouppurchase-model';
+
+const groupPurchase = new GroupPurchaseModel(foodUSD, {
+  savingsRate: 0.15,           // 15% savings
+  minimumParticipants: 5,      // Min 5 participants
+});
+
+// Create group order
+const orderId = groupPurchase.createOrder(
+  1,                   // week
+  '0xALICE',          // creator
+  '0xSUPPLIER',       // supplier
+  500,                 // target amount
+  'groceries'
+);
+
+// Members contribute
+groupPurchase.contribute(1, orderId, '0xBOB', 100);
+groupPurchase.contribute(1, orderId, '0xCHARLIE', 120);
+// ... add more participants (min 5)
+
+// Execute order (automatically applies 15% savings)
+const result = groupPurchase.executeOrder(orderId);
+console.log(`Saved: $${result.savingsAmount}`);
+console.log(`Final cost: $${result.finalCost}`);
+
+// Validate savings assumption
+const validation = groupPurchase.validateSavingsAssumption();
+console.log(`Actual savings rate: ${validation.actualRate * 100}%`);
+```
+
+### GroVault Staking
+
+Time-locked staking with quadratic voting power:
+
+```typescript
+import { GroVaultModel } from './contracts/grovault-model';
+
+const groVault = new GroVaultModel(groToken, {
+  baseInterestRate: 0.02,      // 2% APR
+  lockBonusMultiplier: 0.5,    // +50% per year
+  compoundingPeriod: 'weekly',
+});
+
+// Create lock (stake tokens)
+groVault.createLock(
+  1,           // week
+  '0xALICE',  // address
+  10.0,        // amount (10 GRO)
+  2            // duration (2 years)
+);
+
+// Get voting power (quadratic formula)
+const votingPower = groVault.getVotingPower('0xALICE');
+// Formula: sqrt(amount) * (1 + 0.5 * (years - 1))
+// = sqrt(10) * (1 + 0.5 * 1) = 3.16 * 1.5 = 4.74
+
+// Accrue interest weekly
+for (let week = 2; week <= 52; week++) {
+  groVault.accrueInterest(week);
+}
+
+// Withdraw after lock expires
+groVault.withdraw(105, '0xALICE');  // After 2 years (104 weeks)
+
+// Get wealth accumulation
+const wealth = groVault.calculateWealthAccumulation('0xALICE');
+console.log(`Locked: ${wealth.locked} GRO`);
+console.log(`Interest: ${wealth.interestAccrued} GRO`);
+console.log(`Total: ${wealth.totalValue} GRO`);
+```
+
+### CoopGovernor
+
+Quadratic voting governance:
+
+```typescript
+import { CoopGovernorModel } from './contracts/coopgovernor-model';
+
+const governance = new CoopGovernorModel(groVault, {
+  votingPeriodWeeks: 2,
+  proposalThreshold: 100,      // Min 100 voting power
+  quorumPercentage: 0.1,       // 10% quorum
+});
+
+// Create proposal
+const proposalId = governance.createProposal(
+  1,                           // week
+  '0xALICE',                  // proposer
+  'Increase food budget allocation',
+  'budget'
+);
+
+// Cast votes (quadratic cost)
+governance.castVote(
+  2,              // week
+  proposalId,
+  '0xBOB',       // voter
+  3,              // votes (costs 3^2 = 9 voting power)
+  true            // support
+);
+
+governance.castVote(2, proposalId, '0xCHARLIE', 2, false);
+
+// Execute proposal after voting period
+const result = governance.executeProposal(4, proposalId);
+console.log(`Passed: ${result.passed}`);
+console.log(`Votes for: ${result.votesFor}`);
+console.log(`Votes against: ${result.votesAgainst}`);
+
+// Analyze democratic engagement
+const engagement = governance.analyzeDemocraticEngagement();
+console.log(`Voter turnout: ${engagement.voterTurnout * 100}%`);
+console.log(`Power concentration: ${engagement.concentrationOfPower * 100}%`);
+```
+
+### Complete Simulation Example
+
+See `integrations/contracts/example-contract-simulation.ts` for a complete 52-week simulation demonstrating all contracts working together with 100 participants.
+
+```bash
+# Run the example
+npm run example:contracts
 ```
 
 ## Event Topics
