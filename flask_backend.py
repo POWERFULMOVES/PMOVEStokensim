@@ -1,24 +1,54 @@
 """Flask application exposing the PMOVES simulation backend."""
 
+from __future__ import annotations
+
+import importlib
 import logging
+import math
 import os
 import random
-from typing import Any, Dict
 import sys
-import math
-import random
+from typing import Any, Dict
+
 import numpy as np
 import pandas as pd
-import traceback
-from typing import Any, Dict
-from flask import Flask, request, jsonify, render_template
+
+
+def _ensure_real_flask():
+    """Return a Flask module with a fully featured ``Flask`` class."""
+
+    module = sys.modules.get("flask")
+    Flask_cls = getattr(module, "Flask", None) if module else None
+    if Flask_cls is not None and hasattr(Flask_cls, "test_client"):
+        return module
+
+    original = module
+    try:
+        if "flask" in sys.modules:
+            del sys.modules["flask"]
+        return importlib.import_module("flask")
+    except ImportError:
+        if original is not None:
+            sys.modules["flask"] = original
+            return original
+        raise
+
+
+flask_module = _ensure_real_flask()
+if flask_module is None:  # pragma: no cover - defensive guard
+    raise ImportError("Flask module could not be loaded")
+
+Flask = flask_module.Flask  # type: ignore[attr-defined]
+jsonify = flask_module.jsonify  # type: ignore[attr-defined]
+render_template = getattr(flask_module, "render_template", lambda *args, **kwargs: "")
+request = flask_module.request  # type: ignore[attr-defined]
+
 from flask_cors import CORS
-import logging
 
 # --- Flask App Setup ---
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-logging.basicConfig(level=logging.INFO) # Basic logging
+logging.basicConfig(level=logging.INFO)  # Basic logging
 
 
 # --- Simulation Parameters ---
@@ -549,20 +579,16 @@ class EconomicMetrics:
         return float(max(0.0, min(1.0, simpson * 2)))
 
     def calculate_risk_resilience(self):
-         # Placeholder: Could combine safety net and wealth stability
-         safety_net = self.calculate_social_safety_net()
-         wealth_B = [m.wealth_scenario_B for m in self.members]
-         mean_wealth = np.mean(wealth_B) if wealth_B else 0
-         std_dev = np.std(wealth_B) if wealth_B else 0
-         stability = 1.0 - (std_dev / mean_wealth) if mean_wealth > 1e-6 else 0
-         return (safety_net + stability) / 2.0
+        """Placeholder combining social safety net and wealth stability."""
+        safety_net = self.calculate_social_safety_net()
+        wealth_B = [m.wealth_scenario_B for m in self.members]
+        mean_wealth = np.mean(wealth_B) if wealth_B else 0
+        std_dev = np.std(wealth_B) if wealth_B else 0
+        stability = 1.0 - (std_dev / mean_wealth) if mean_wealth > 1e-6 else 0
+        return (safety_net + stability) / 2.0
 
-from flask import Flask, jsonify, render_template, request
-from flask_cors import CORS
-
-from pmoves_backend import DEFAULT_PARAMS, run_simulation
     def calculate_advanced_metrics(self):
-        # Call the placeholder methods
+        """Aggregate the advanced metrics exposed to the UI."""
         return {
             'MarketEfficiency': self.calculate_market_efficiency(),
             'InnovationAdoption': self.calculate_innovation_adoption(),
@@ -751,6 +777,14 @@ def run_simulation(params, *, validated=False):
 
     app.logger.info("--- Simulation Loop Finished ---")
 
+    summary = generate_narrative_summary(simulation_history, key_events)
+
+    return {
+        "history": simulation_history,
+        "events": key_events,
+        "summary": summary,
+    }
+
 app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.INFO)
@@ -765,22 +799,23 @@ def handle_simulation():
     app.logger.info(f"Received request with params: {params}")
     try:
         validated_params = validate_simulation_params(params)
+    except ParameterValidationError as validation_error:
+        app.logger.warning("Validation error: %s", validation_error.errors)
+        return jsonify({"errors": validation_error.errors}), 400
+    except Exception as exc:
+        app.logger.error("Unexpected validation error: %s", exc, exc_info=True)
+        return jsonify({"error": str(exc)}), 400
+
+    try:
         simulation_results = run_simulation(validated_params, validated=True)
-        return jsonify(simulation_results)
     except ValueError as exc:
         app.logger.error("Simulation Value Error: %s", exc, exc_info=True)
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:  # pragma: no cover - defensive logging
         app.logger.error("Unexpected error during simulation: %s", exc, exc_info=True)
-    except ParameterValidationError as validation_error:
-         app.logger.warning(f"Validation error: {validation_error.errors}")
-         return jsonify({"errors": validation_error.errors}), 400
-    except ValueError as ve:
-         app.logger.error(f"Simulation Value Error: {ve}", exc_info=True)
-         return jsonify({"error": str(ve)}), 400
-    except Exception as e:
-        app.logger.error(f"Unexpected error during simulation: {e}", exc_info=True)
         return jsonify({"error": "An unexpected error occurred during simulation."}), 500
+
+    return jsonify(simulation_results)
 
 
 @app.route("/get_current_metrics")
