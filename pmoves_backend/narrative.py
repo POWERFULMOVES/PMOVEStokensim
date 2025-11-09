@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+
+def safe_format(value: Optional[float], format_spec: str, fallback: str = "N/A") -> str:
+    """Safely format metrics that may be missing or non-numeric."""
+    if value is None:
+        return fallback
+    try:
+        return format(value, format_spec)
+    except (TypeError, ValueError):
+        return fallback
 
 
 def generate_narrative_summary(history: List[Dict[str, float]], events: List[Dict[str, object]]):
@@ -26,6 +36,11 @@ def generate_narrative_summary(history: List[Dict[str, float]], events: List[Dic
         if last_period["PovertyRate_B"] < first_period["PovertyRate_B"]
         else "increased or stayed same"
     )
+    wealth_gap_b = safe_format(last_period.get("WealthGap_B"), ".1f")
+    wealth_gap_a = safe_format(last_period.get("WealthGap_A"), ".1f")
+    resilience_score = safe_format(last_period.get("CommunityResilience"), ".2f")
+    sustainability_score = safe_format(last_period.get("SustainabilityScore"), ".2f")
+
     narrative = {
         "title": "Economic System Evolution Analysis",
         "overview": (
@@ -61,8 +76,10 @@ def generate_narrative_summary(history: List[Dict[str, float]], events: List[Dic
                     f"{first_period.get('Bottom20PctShare', 0)*100:.1f}% to "
                     f"{last_period.get('Bottom20PctShare', 0)*100:.1f}%. "
                     "The wealth gap (Top 20% / Bottom 20%) finished at "
-                    f"{last_period.get('WealthGap_B', 'N/A'):.1f}x in B (vs "
-                    f"{last_period.get('WealthGap_A', 'N/A'):.1f}x in A)."
+                    f"{wealth_gap_b}"
+                    f"{'x' if wealth_gap_b != 'N/A' else ''} in B (vs "
+                    f"{wealth_gap_a}"
+                    f"{'x' if wealth_gap_a != 'N/A' else ''} in A)."
                 ),
             },
             "community_health": {
@@ -73,7 +90,7 @@ def generate_narrative_summary(history: List[Dict[str, float]], events: List[Dic
                 ),
                 "resilience": (
                     "Community resilience index in B finished at: "
-                    f"{last_period.get('CommunityResilience', 'N/A'):.2f}"
+                    f"{resilience_score}"
                 ),
                 "details": (
                     "Economic health indicators suggest Scenario B fostered "
@@ -82,7 +99,7 @@ def generate_narrative_summary(history: List[Dict[str, float]], events: List[Dic
                 ),
                 "sustainability": (
                     "Economic sustainability score in B: "
-                    f"{last_period.get('SustainabilityScore', 'N/A'):.2f}"
+                    f"{sustainability_score}"
                 ),
             },
         },
