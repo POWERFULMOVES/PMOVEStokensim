@@ -557,10 +557,6 @@ class EconomicMetrics:
          stability = 1.0 - (std_dev / mean_wealth) if mean_wealth > 1e-6 else 0
          return (safety_net + stability) / 2.0
 
-from flask import Flask, jsonify, render_template, request
-from flask_cors import CORS
-
-from pmoves_backend import DEFAULT_PARAMS, run_simulation
     def calculate_advanced_metrics(self):
         # Call the placeholder methods
         return {
@@ -751,9 +747,28 @@ def run_simulation(params, *, validated=False):
 
     app.logger.info("--- Simulation Loop Finished ---")
 
-app = Flask(__name__)
-CORS(app)
-logging.basicConfig(level=logging.INFO)
+    # Prepare final_members data
+    final_members_data = []
+    for member in members:
+        final_members_data.append({
+            'ID': member.id,
+            'Income': member.weekly_income,
+            'Budget': member.weekly_food_budget,
+            'Wealth_A': member.wealth_scenario_A,
+            'Wealth_B': member.wealth_scenario_B,
+            'FoodUSD_B': member.food_usd_balance,
+            'GroToken_B': member.grotoken_balance
+        })
+
+    # Generate narrative summary
+    narrative_summary = generate_narrative_summary(simulation_history, key_events)
+
+    return {
+        "history": simulation_history,
+        "final_members": final_members_data,
+        "summary": narrative_summary,
+        "key_events": key_events
+    }
 
 
 @app.route("/run_simulation", methods=["POST"])
@@ -767,11 +782,6 @@ def handle_simulation():
         validated_params = validate_simulation_params(params)
         simulation_results = run_simulation(validated_params, validated=True)
         return jsonify(simulation_results)
-    except ValueError as exc:
-        app.logger.error("Simulation Value Error: %s", exc, exc_info=True)
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:  # pragma: no cover - defensive logging
-        app.logger.error("Unexpected error during simulation: %s", exc, exc_info=True)
     except ParameterValidationError as validation_error:
          app.logger.warning(f"Validation error: {validation_error.errors}")
          return jsonify({"errors": validation_error.errors}), 400
@@ -889,5 +899,5 @@ def index():
 
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "True").lower() == "true"
-    host_ip = "127.0.0.1"
+    host_ip = "0.0.0.0"
     app.run(debug=debug_mode, host=host_ip, port=5000)

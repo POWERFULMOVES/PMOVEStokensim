@@ -136,6 +136,83 @@ To distribute this application to other users:
 - `setup_and_run.bat` - Script to set up a virtual environment and run the application
 - `setup_with_uv.bat` - Script to set up a virtual environment using uv and run the application
 - `create_distribution.bat` - Script to create a clean distribution package
+- `home/pmoves/PMOVES.AI/integrations-workspace/` - Git submodules for Firefly-iii and PMOVES-DoX integration
+
+## Integration Workspace (Firefly-iii + PMOVES-DoX)
+
+The repository now vendors the upstream Firefly-iii and PMOVES-DoX projects as Git submodules so you can operate the full cooperative economics stack from a single workspace.
+
+### 1. Pull the integration submodules
+
+```bash
+git submodule update --init --recursive
+```
+
+This materialises the upstream code under `home/pmoves/PMOVES.AI/integrations-workspace/`:
+
+- `PMOVES-Firefly-iii/`
+- `PMOVES-DoX/`
+
+Prefer a repository-local workspace? The same submodules are mirrored under `integrations/` so you
+can keep the upstream copies intact while iterating locally:
+
+- `integrations/PMOVES-Firefly-iii/`
+- `integrations/PMOVES-DoX/`
+
+### 2. Launch PMOVES-DoX (analysis platform)
+
+```bash
+cd home/pmoves/PMOVES.AI/integrations-workspace/PMOVES-DoX
+Copy-Item .env.example .env   # Windows PowerShell
+# cp .env.example .env        # macOS/Linux
+docker compose -f docker-compose.cpu.yml up --build -d
+```
+
+The backend listens on `http://localhost:8001` and the frontend on `http://localhost:3000` when launched via Docker Compose. Refer to the submodule README for GPU profiles, Ollama integration, or local-dev instructions.
+
+### 3. Launch Firefly-iii (financial data source)
+
+Firefly-iii offers multiple deployment options. The quickest path is Docker:
+
+```bash
+cd home/pmoves/PMOVES.AI/integrations-workspace/PMOVES-Firefly-iii
+Copy-Item .env.example .env   # Windows PowerShell
+# cp .env.example .env        # macOS/Linux
+docker compose up -d          # see upstream docs for variants
+```
+
+Once running, Firefly will expose its web UI (default `http://localhost:8080`) and REST API for simulation validation. Consult the Firefly-iii documentation in the submodule for additional setup tasks (database seeding, OAuth, etc.).
+
+> **Heads-up:** the bundled `docker-compose.pmoves-net.yml` references the GHCR image `ghcr.io/POWERFULMOVES/pmoves-firefly-iii:main`. Docker expects repository names to be lowercase, so the pull fails with `invalid reference format`. Until the upstream image is republished, either (a) edit the compose file to use a lowercase image name that you host yourself, or (b) fall back to the official Firefly III compose file in the submodule (`docker-compose.yml`) which builds the containers locally.
+
+### 4. Run PMOVEStokensim and integration checks
+
+With Firefly-iii and PMOVES-DoX online:
+
+1. Start PMOVEStokensim (see options above).
+2. Optionally execute the integration workflow to export a scenario and push it into PMOVES-DoX:
+
+	```bash
+	python scripts/integrate_with_dox.py --scenario my_scenario
+	```
+
+	Use `--params-file path/to/overrides.json` or `--seed` for reproducible runs. The script expects the DoX API at `http://localhost:8001` (adjust if you run DoX manually) and writes exports under `exports/` by timestamp.
+
+3. Explore DoX dashboards at `http://localhost:5173` (datavzrd) and answer questions via the DoX frontend. Pull Firefly data via its API to calibrate future simulations.
+
+> Tip: if you only need to confirm DoX availability, run `python scripts/integrate_with_dox.py --health-only`.
+
+## Next.js analytics dashboard
+
+The advanced charts and `/analytics` experience live in the `pmoves-nextjs` workspace.
+
+```bash
+cd pmoves-nextjs
+npm install
+npm run dev
+```
+
+Visit `http://localhost:3000/analytics` to explore violin plots, Sankey diagrams, correlation heatmaps, and waterfall charts generated from the most recent simulation exports. Use `npm run build` / `npm run start` for a production build.
 
 ## Troubleshooting
 
