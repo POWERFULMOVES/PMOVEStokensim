@@ -10,8 +10,6 @@ import {
   BASELINE_MODELS,
   ALL_MODELS,
   AI_ENHANCED_LOCAL_SERVICE,
-  ENERGY_CONSULTING,
-  TOKEN_PRE_ORDER,
   AI_SERVICE_BULL_MARKET,
   TOKEN_PRE_ORDER_BEAR_MARKET,
   MARKET_SCENARIOS,
@@ -155,7 +153,7 @@ async function runAllValidations(): Promise<void> {
   console.log('\n\n📈 MARKET SCENARIO IMPACT ANALYSIS');
   console.log('='.repeat(80));
 
-  Object.entries(MARKET_SCENARIOS).forEach(([key, scenario]) => {
+  Object.entries(MARKET_SCENARIOS).forEach(([_key, scenario]) => {
     console.log(`\n${scenario.name} (${formatPercent(scenario.probability * 100, 0)} probability):`);
     console.log(`  ROI Multiplier:      ${scenario.roiMultiplier}x`);
     console.log(`  Success Rate Change: ${scenario.successRateIncrease > 0 ? '+' : ''}${formatPercent(scenario.successRateIncrease * 100, 0)}`);

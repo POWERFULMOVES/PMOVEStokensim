@@ -441,8 +441,8 @@ export class CoopGovernorModel {
     config: GovernanceConfig;
     proposals: Proposal[];
     votes: Vote[];
-    statistics: ReturnType<typeof this.getStatistics>;
-    engagement: ReturnType<typeof this.analyzeDemocraticEngagement>;
+    statistics: any;
+    engagement: any;
   } {
     return {
       config: this.config,

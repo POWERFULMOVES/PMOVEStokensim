@@ -40,7 +40,6 @@ export class GroTokenDistribution {
   private holders: Map<string, TokenHolder> = new Map();
   private distributionHistory: DistributionEvent[] = [];
   private currentSupply: number = 0;
-  private currentWeek: number = 0;
 
   constructor(config: Partial<GroTokenConfig> = {}) {
     this.config = {
@@ -110,7 +109,6 @@ export class GroTokenDistribution {
    * Distribute tokens for a given week
    */
   distributeWeekly(week: number): DistributionEvent[] {
-    this.currentWeek = week;
     const events: DistributionEvent[] = [];
 
     for (const [address, holder] of this.holders) {
@@ -268,7 +266,15 @@ export class GroTokenDistribution {
     config: GroTokenConfig;
     holders: TokenHolder[];
     history: DistributionEvent[];
-    statistics: ReturnType<typeof this.getStatistics>;
+    statistics: {
+      totalSupply: number;
+      totalDistributed: number;
+      totalHolders: number;
+      activeParticipants: number;
+      averageBalance: number;
+      totalValue: number;
+      distributionEvents: number;
+    };
   } {
     return {
       config: this.config,

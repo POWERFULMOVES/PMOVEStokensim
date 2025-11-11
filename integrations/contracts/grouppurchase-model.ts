@@ -445,7 +445,7 @@ export class GroupPurchaseModel {
     orders: GroupOrder[];
     contributions: Contribution[];
     savings: SavingsResult[];
-    statistics: ReturnType<typeof this.getStatistics>;
+    statistics: any;
   } {
     return {
       config: this.config,

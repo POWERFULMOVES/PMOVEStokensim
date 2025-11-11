@@ -399,7 +399,7 @@ export class FoodUSDModel {
     config: FoodUSDConfig;
     holders: FoodUSDHolder[];
     transactions: SpendingTransaction[];
-    statistics: ReturnType<typeof this.getStatistics>;
+    statistics: any;
   } {
     return {
       config: this.config,

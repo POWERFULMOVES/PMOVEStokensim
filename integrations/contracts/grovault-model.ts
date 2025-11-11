@@ -447,7 +447,7 @@ export class GroVaultModel {
     config: GroVaultConfig;
     locks: LockPosition[];
     events: StakingEvent[];
-    statistics: ReturnType<typeof this.getStatistics>;
+    statistics: any;
   } {
     return {
       config: this.config,
