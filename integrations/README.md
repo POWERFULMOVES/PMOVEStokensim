@@ -479,6 +479,130 @@ See `integrations/contracts/example-contract-simulation.ts` for a complete 52-we
 npm run example:contracts
 ```
 
+## Projection Validation
+
+The projection validation framework validates 5-year business projection models against simulation runs, comparing projected ROI, revenue, and break-even timelines with actual results.
+
+### Business Models
+
+Three baseline projection models are included:
+
+1. **AI-Enhanced Local Service Business** ($5,000 investment)
+   - Projected Year 5 Revenue: $94,277
+   - Projected ROI: 1,366%
+   - Break-even: 3.3 months
+   - Success Probability: 75%
+
+2. **Sustainable Energy AI Consulting** ($4,000 investment)
+   - Projected Year 5 Revenue: $63,020
+   - Projected ROI: 818%
+   - Break-even: 4.4 months
+   - Success Probability: 60%
+
+3. **Community Token Pre-Order System** ($3,000 investment)
+   - Projected Year 5 Revenue: $33,084
+   - Projected ROI: 350%
+   - Break-even: 6.9 months
+   - Success Probability: 40%
+
+### Running Validations
+
+```bash
+# Run all projection validations (all 5 models, ~5-10 minutes)
+npm run validate:projections
+
+# Quick validation (single model, ~1-2 minutes)
+npm run validate:quick
+```
+
+### Validation Reports
+
+Each validation generates:
+
+- **Variance Analysis**: Compare projected vs actual revenue, ROI, break-even
+- **Risk Assessment**: Success probability, confidence level, risk factors
+- **Growth Analysis**: Revenue growth patterns, profitability trends
+- **Market Scenarios**: Bull, normal, bear market comparisons
+- **Recommendations**: Mitigation strategies and optimizations
+
+### Using the Validator
+
+```typescript
+import { ProjectionValidator, AI_ENHANCED_LOCAL_SERVICE } from './projections';
+
+const validator = new ProjectionValidator();
+
+// Validate single model
+const report = await validator.validate(AI_ENHANCED_LOCAL_SERVICE);
+
+console.log(`Actual ROI: ${report.actual.roi.toFixed(0)}%`);
+console.log(`Variance: ${report.variance.roiVariance.toFixed(1)}%`);
+console.log(`Confidence: ${report.riskAssessment.confidenceLevel}`);
+
+// Compare multiple models
+const comparison = await validator.compareModels([
+  AI_ENHANCED_LOCAL_SERVICE,
+  ENERGY_CONSULTING,
+  TOKEN_PRE_ORDER,
+]);
+
+console.log('Top model:', comparison.ranking[0].name);
+console.log('Score:', comparison.ranking[0].score);
+```
+
+### Custom Projection Models
+
+Create your own projection models:
+
+```typescript
+import { ProjectionModel, ProjectionValidator } from './projections';
+
+const customModel: ProjectionModel = {
+  name: 'My Custom Business',
+  description: 'Custom business model',
+  initialInvestment: 10000,
+  projectedYear5Revenue: 150000,
+  projectedRiskAdjustedROI: 10.0, // 1,000%
+  projectedBreakEvenMonths: 6,
+  successProbability: 0.65,
+
+  // Simulation parameters
+  populationSize: 300,
+  participationRate: 0.55,
+  weeklyRevenuePerParticipant: 0.75,
+  growthRatePerWeek: 0.015, // 1.5% weekly growth
+
+  // Token economy (optional)
+  tokenDistributionRate: 0.40,
+  groupBuyingSavings: 0.15,
+  stakingParticipation: 0.30,
+};
+
+const validator = new ProjectionValidator();
+const report = await validator.validate(customModel);
+```
+
+### Export Results
+
+Export validation results for analysis:
+
+```typescript
+import { exportAllResults, generateMarkdownReport } from './projections';
+
+// Export CSV files and JSON summary
+exportAllResults(reports, weeklyDataMap, './output');
+
+// Generate markdown report
+generateMarkdownReport(reports, ranking, './output/report.md');
+```
+
+Output files:
+- `model-name-report.csv` - Validation summary for each model
+- `model-name-weekly.csv` - Weekly simulation data (260 weeks)
+- `model-comparison.csv` - Side-by-side comparison
+- `summary.json` - JSON summary of all results
+- `report.md` - Markdown report
+
 ## Event Topics
 
 All event topics are defined in `contracts/topics.json`:

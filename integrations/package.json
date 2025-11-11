@@ -15,7 +15,9 @@
     "format": "prettier --write \"**/*.{ts,json,md}\"",
     "typecheck": "tsc --noEmit",
     "example:integrations": "ts-node example-usage.ts",
-    "example:contracts": "ts-node contracts/example-contract-simulation.ts"
+    "example:contracts": "ts-node contracts/example-contract-simulation.ts",
+    "validate:projections": "ts-node projections/run-validation.ts",
+    "validate:quick": "ts-node projections/run-validation.ts --quick"
   },
   "keywords": [
     "pmoves",
