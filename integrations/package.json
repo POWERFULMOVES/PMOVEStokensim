@@ -14,8 +14,10 @@
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"**/*.{ts,json,md}\"",
     "typecheck": "tsc --noEmit",
-    "example:integrations": "ts-node example-usage.ts",
-    "example:contracts": "ts-node contracts/example-contract-simulation.ts"
+    "example:integrations": "ts-node --project tsconfig.run.json example-usage.ts",
+    "example:contracts": "ts-node --project tsconfig.run.json contracts/example-contract-simulation.ts",
+    "validate:projections": "ts-node --project tsconfig.run.json projections/run-validation.ts",
+    "validate:quick": "ts-node --project tsconfig.run.json projections/run-validation.ts --quick"
   },
   "keywords": [
     "pmoves",

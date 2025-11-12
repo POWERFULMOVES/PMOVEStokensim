@@ -445,7 +445,17 @@ export class GroupPurchaseModel {
     orders: GroupOrder[];
     contributions: Contribution[];
     savings: SavingsResult[];
-    statistics: ReturnType<typeof this.getStatistics>;
+    statistics: {
+      totalOrders: number;
+      executedOrders: number;
+      failedOrders: number;
+      activeOrders: number;
+      totalSaved: number;
+      totalSpent: number;
+      averageSavingsRate: number;
+      totalParticipants: number;
+      averageParticipantsPerOrder: number;
+    };
   } {
     return {
       config: this.config,
