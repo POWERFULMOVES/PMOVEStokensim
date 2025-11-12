@@ -10,6 +10,22 @@ import * as path from 'path';
 import { ValidationReport, SimulationResults } from './projection-validator';
 
 /**
+ * Escape a CSV field value
+ * Wraps in quotes if it contains comma, quote, or newline
+ * Doubles any internal quotes
+ */
+function escapeCSVField(value: string | number | boolean): string {
+  const str = String(value);
+
+  // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+
+  return str;
+}
+
+/**
  * Export validation report to CSV
  */
 export function exportValidationReportCSV(
@@ -58,7 +74,7 @@ export function exportValidationReportCSV(
     report.riskAssessment.mitigationRecommendations.join('; '),
   ];
 
-  const csv = [headers.join(','), row.join(',')].join('\n');
+  const csv = [headers.join(','), row.map(escapeCSVField).join(',')].join('\n');
 
   fs.writeFileSync(outputPath, csv, 'utf-8');
 }
@@ -89,7 +105,7 @@ export function exportWeeklyDataCSV(
 
   const csv = [
     headers.join(','),
-    ...rows.map(row => row.join(',')),
+    ...rows.map(row => row.map(escapeCSVField).join(',')),
   ].join('\n');
 
   fs.writeFileSync(outputPath, csv, 'utf-8');
@@ -100,7 +116,8 @@ export function exportWeeklyDataCSV(
  */
 export function exportComparisonCSV(
   reports: ValidationReport[],
-  outputPath: string
+  outputPath: string,
+  ranking?: { name: string; score: number }[]
 ): void {
   const headers = [
     'Model Name',
@@ -120,27 +137,33 @@ export function exportComparisonCSV(
     'Market Scenario',
   ];
 
-  const rows = reports.map(report => [
-    report.modelName,
-    '', // Score will be calculated separately
-    report.projections.revenue,
-    report.actual.revenue,
-    report.variance.revenueVariance.toFixed(2),
-    (report.projections.roi * 100).toFixed(2),
-    report.actual.roi.toFixed(2),
-    report.variance.roiVariance.toFixed(2),
-    report.projections.breakEvenMonths.toFixed(1),
-    report.actual.breakEvenMonths?.toFixed(1) || 'N/A',
-    report.riskAssessment.achievedSuccessProbability ? 'Yes' : 'No',
-    report.riskAssessment.confidenceLevel,
-    report.analysis.revenueGrowthPattern,
-    report.analysis.profitabilityTrend,
-    report.analysis.marketScenario,
-  ]);
+  const rows = reports.map(report => {
+    // Find score from ranking if provided
+    const rankEntry = ranking?.find(r => r.name === report.modelName);
+    const score = rankEntry ? rankEntry.score.toFixed(1) : '';
+
+    return [
+      report.modelName,
+      score,
+      report.projections.revenue,
+      report.actual.revenue,
+      report.variance.revenueVariance.toFixed(2),
+      (report.projections.roi * 100).toFixed(2),
+      report.actual.roi.toFixed(2),
+      report.variance.roiVariance.toFixed(2),
+      report.projections.breakEvenMonths.toFixed(1),
+      report.actual.breakEvenMonths?.toFixed(1) || 'N/A',
+      report.riskAssessment.achievedSuccessProbability ? 'Yes' : 'No',
+      report.riskAssessment.confidenceLevel,
+      report.analysis.revenueGrowthPattern,
+      report.analysis.profitabilityTrend,
+      report.analysis.marketScenario,
+    ];
+  });
 
   const csv = [
     headers.join(','),
-    ...rows.map(row => row.join(',')),
+    ...rows.map(row => row.map(escapeCSVField).join(',')),
   ].join('\n');
 
   fs.writeFileSync(outputPath, csv, 'utf-8');
@@ -152,7 +175,8 @@ export function exportComparisonCSV(
 export function exportAllResults(
   reports: ValidationReport[],
   weeklyDataMap: Map<string, SimulationResults>,
-  outputDir: string
+  outputDir: string,
+  ranking?: { name: string; score: number }[]
 ): void {
   // Create output directory if it doesn't exist
   if (!fs.existsSync(outputDir)) {
@@ -187,7 +211,7 @@ export function exportAllResults(
 
   // Export comparison
   const comparisonPath = path.join(outputDir, 'model-comparison.csv');
-  exportComparisonCSV(reports, comparisonPath);
+  exportComparisonCSV(reports, comparisonPath, ranking);
 
   console.log(`Exported: ${comparisonPath}`);
 

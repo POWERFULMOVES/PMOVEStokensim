@@ -57,7 +57,10 @@ function printReport(report: any): void {
 
   console.log('\nBreak-Even:');
   console.log(`  Projected: ${report.projections.breakEvenMonths.toFixed(1)} months`);
-  console.log(`  Actual:    ${report.actual.breakEvenMonths?.toFixed(1) || 'Not achieved'} months`);
+  const actualBreakEven = report.actual.breakEvenMonths
+    ? `${report.actual.breakEvenMonths.toFixed(1)} months`
+    : 'Not achieved';
+  console.log(`  Actual:    ${actualBreakEven}`);
   if (report.variance.breakEvenVariance !== null) {
     console.log(`  Variance:  ${formatPercent(report.variance.breakEvenVariance)}`);
   }
@@ -173,7 +176,10 @@ async function runAllValidations(): Promise<void> {
   if (bestReport) {
     console.log(`   Expected ROI: ${formatPercent(bestReport.actual.roi, 0)}`);
     console.log(`   Expected Revenue (Year 5): ${formatCurrency(bestReport.actual.revenue)}`);
-    console.log(`   Break-Even: ${bestReport.actual.breakEvenMonths?.toFixed(1) || 'N/A'} months`);
+    const breakEvenText = bestReport.actual.breakEvenMonths
+      ? `${bestReport.actual.breakEvenMonths.toFixed(1)} months`
+      : 'Not achieved';
+    console.log(`   Break-Even: ${breakEvenText}`);
     console.log(`   Confidence: ${bestReport.riskAssessment.confidenceLevel.toUpperCase()}`);
   }
 

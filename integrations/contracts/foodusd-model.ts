@@ -399,7 +399,16 @@ export class FoodUSDModel {
     config: FoodUSDConfig;
     holders: FoodUSDHolder[];
     transactions: SpendingTransaction[];
-    statistics: any;
+    statistics: {
+      totalSupply: number;
+      totalMinted: number;
+      totalBurned: number;
+      totalSpent: number;
+      holders: number;
+      transactions: number;
+      spendingByCategory: Record<string, number>;
+      averageSpendingPerHolder: number;
+    };
   } {
     return {
       config: this.config,

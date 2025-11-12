@@ -447,7 +447,15 @@ export class GroVaultModel {
     config: GroVaultConfig;
     locks: LockPosition[];
     events: StakingEvent[];
-    statistics: any;
+    statistics: {
+      totalLocked: number;
+      totalLockedValue: number;
+      activePositions: number;
+      totalInterestAccrued: number;
+      averageLockDuration: number;
+      totalVotingPower: number;
+      averageAPR: number;
+    };
   } {
     return {
       config: this.config,

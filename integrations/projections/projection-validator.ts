@@ -248,8 +248,10 @@ export class ProjectionValidator {
     const revenueVariance = ((results.finalRevenue - model.projectedYear5Revenue) /
                             model.projectedYear5Revenue) * 100;
 
-    const roiVariance = ((results.actualROI - model.projectedRiskAdjustedROI) /
-                        model.projectedRiskAdjustedROI) * 100;
+    // Convert projected ROI from decimal to percentage for comparison
+    const projectedROIPercent = model.projectedRiskAdjustedROI * 100;
+    const roiVariance = ((results.actualROI - projectedROIPercent) /
+                        projectedROIPercent) * 100;
 
     const breakEvenMonths = results.breakEvenWeek ? results.breakEvenWeek / 4.33 : null;
     const breakEvenVariance = breakEvenMonths ?
@@ -257,7 +259,7 @@ export class ProjectionValidator {
        model.projectedBreakEvenMonths) * 100 : null;
 
     // Assess success
-    const achievedROI = results.actualROI >= (model.projectedRiskAdjustedROI * 0.8); // Within 20%
+    const achievedROI = results.actualROI >= (projectedROIPercent * 0.8); // Within 20%
     const achievedBreakEven = breakEvenMonths ?
       breakEvenMonths <= (model.projectedBreakEvenMonths * 1.2) : false;
 
@@ -369,10 +371,11 @@ export class ProjectionValidator {
     ranking: { name: string; score: number }[];
     recommendations: string[];
   }> {
-    // Validate all models
-    const reports = await Promise.all(
-      models.map(model => this.validate(model))
-    );
+    // Validate all models sequentially to avoid shared coordinator state pollution
+    const reports: ValidationReport[] = [];
+    for (const model of models) {
+      reports.push(await this.validate(model));
+    }
 
     // Score each model (0-100 scale)
     const rankings = reports.map(report => {
