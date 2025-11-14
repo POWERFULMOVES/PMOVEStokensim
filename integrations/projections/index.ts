@@ -35,3 +35,10 @@ export {
   exportAllResults,
   generateMarkdownReport,
 } from './export-results';
+
+export { CalibrationEngine } from './calibration-engine';
+export type {
+  CalibrationResult,
+  CategoryComparison,
+  CalibrationReport,
+} from './calibration-engine';
