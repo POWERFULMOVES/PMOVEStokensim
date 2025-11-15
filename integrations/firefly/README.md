@@ -176,7 +176,10 @@ npm install
 ```bash
 # Get token from Firefly-iii: Options > Profile > OAuth > Personal Access Token
 export FIREFLY_API_TOKEN="your-token-here"
-export FIREFLY_URL="http://localhost:8080"  # Optional, defaults to localhost:8080
+
+# Optional: Configure Firefly URL and population size
+export FIREFLY_URL="http://localhost:8080"  # Default: http://localhost:8080
+export TOTAL_POPULATION="500"               # Default: 500
 ```
 
 2. **Run integration:**
@@ -302,7 +305,8 @@ Week,Start Date,Actual Spending,Baseline Revenue,Calibrated Revenue
 FIREFLY_API_TOKEN="your-firefly-api-token"
 
 # Optional
-FIREFLY_URL="http://localhost:8080"  # Default
+FIREFLY_URL="http://localhost:8080"      # Default: http://localhost:8080
+TOTAL_POPULATION="500"                   # Default: 500 (for participation calculation)
 ```
 
 ### Analysis Period

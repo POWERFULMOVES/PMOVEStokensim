@@ -22,7 +22,7 @@ async function runIntegration(): Promise<void> {
       // Analyze last 3 months
       startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
       endDate: new Date(),
-      totalPopulation: 500, // Total population for participation calculation
+      totalPopulation: parseInt(process.env.TOTAL_POPULATION || '500', 10),
     },
     output: {
       directory: './output/firefly-calibration',
@@ -39,6 +39,10 @@ async function runIntegration(): Promise<void> {
     console.error(
       '  FIREFLY_API_TOKEN=your_token_here npm run firefly:calibrate'
     );
+    console.error('');
+    console.error('Optional environment variables:');
+    console.error('  FIREFLY_URL - Firefly-iii URL (default: http://localhost:8080)');
+    console.error('  TOTAL_POPULATION - Total population for participation calculation (default: 500)');
     console.error('');
     console.error('To get your Firefly-iii API token:');
     console.error('  1. Log in to your Firefly-iii instance');
@@ -61,6 +65,9 @@ async function runIntegration(): Promise<void> {
     );
     console.log(
       `Analysis period: ${config.analysis.startDate.toISOString().split('T')[0]} to ${config.analysis.endDate.toISOString().split('T')[0]}`
+    );
+    console.log(
+      `Total population: ${config.analysis.totalPopulation}`
     );
 
     const result = await integration.run(AI_ENHANCED_LOCAL_SERVICE);
