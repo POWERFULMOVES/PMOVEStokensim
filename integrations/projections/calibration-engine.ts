@@ -157,7 +157,7 @@ export class CalibrationEngine {
     const adjustment = calibrated - baseline;
     const adjustmentPercent = baseline > 0 ? (adjustment / baseline) * 100 : 0;
 
-    const confidence = this.getConfidenceLevel(adjustmentPercent * 100);
+    const confidence = this.getConfidenceLevel(adjustmentPercent);
 
     return {
       parameter: 'participationRate',
@@ -396,9 +396,7 @@ export class CalibrationEngine {
           `[CalibrationEngine] Updating weekly budget: $${adj.baseline} → $${adj.calibrated}`
         );
       } else if (adj.parameter === 'participationRate') {
-        calibratedModel.population = Math.round(
-          model.population * adj.calibrated
-        );
+        calibratedModel.participationRate = adj.calibrated;
         console.log(
           `[CalibrationEngine] Updating participation: ${(adj.baseline * 100).toFixed(0)}% → ${(adj.calibrated * 100).toFixed(0)}%`
         );

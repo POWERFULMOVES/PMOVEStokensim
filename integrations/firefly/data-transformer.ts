@@ -217,9 +217,11 @@ export class FireflyDataTransformer {
     const firstDate = new Date(sorted[0].date);
     const lastDate = new Date(sorted[sorted.length - 1].date);
 
-    // Get Monday of the first week
+    // Get Monday of the first week (on or before firstDate to avoid dropping Sunday transactions)
     const startDate = new Date(firstDate);
-    startDate.setDate(startDate.getDate() - startDate.getDay() + 1);
+    const firstDay = startDate.getDay();
+    const offset = firstDay === 0 ? -6 : 1 - firstDay; // Move to Monday on or before firstDate
+    startDate.setDate(startDate.getDate() + offset);
 
     const weeks: WeeklySpending[] = [];
     let currentWeekStart = new Date(startDate);
