@@ -382,6 +382,17 @@ export class CalibrationEngine {
 
   /**
    * Apply calibration to a projection model
+   *
+   * Applies calibrated parameters to the model:
+   * - weeklyFoodBudget → weeklyRevenuePerParticipant (revenue per participant)
+   * - participationRate → participationRate (% of population participating)
+   * - groupPurchaseSavingsRate → groupBuyingSavings (% savings from group purchases)
+   * - categoryDistribution.* → Not applied to model (informational only, used by
+   *   FoodUSDModel internally during simulation)
+   *
+   * @param model - Original projection model
+   * @param calibration - Calibration report with parameter adjustments
+   * @returns Calibrated model with updated parameters
    */
   applyCalibration(
     model: ProjectionModel,
@@ -391,7 +402,8 @@ export class CalibrationEngine {
 
     calibration.parameterAdjustments.forEach((adj) => {
       if (adj.parameter === 'weeklyFoodBudget') {
-        // Update weekly food budget in model config
+        // Update weekly revenue per participant (spending = revenue in this model)
+        calibratedModel.weeklyRevenuePerParticipant = adj.calibrated;
         console.log(
           `[CalibrationEngine] Updating weekly budget: $${adj.baseline} → $${adj.calibrated}`
         );
@@ -401,11 +413,15 @@ export class CalibrationEngine {
           `[CalibrationEngine] Updating participation: ${(adj.baseline * 100).toFixed(0)}% → ${(adj.calibrated * 100).toFixed(0)}%`
         );
       } else if (adj.parameter.startsWith('categoryDistribution')) {
-        // Category distributions would be updated in the simulation logic
+        // Category distributions are informational only
+        // They are used internally by FoodUSDModel during simulation
+        // but not stored in ProjectionModel
         console.log(
-          `[CalibrationEngine] Category adjustment: ${adj.parameter} = ${adj.calibrated.toFixed(1)}%`
+          `[CalibrationEngine] Category adjustment (informational): ${adj.parameter} = ${(adj.calibrated * 100).toFixed(1)}%`
         );
       } else if (adj.parameter === 'groupPurchaseSavingsRate') {
+        // Update group buying savings percentage
+        calibratedModel.groupBuyingSavings = adj.calibrated;
         console.log(
           `[CalibrationEngine] Group savings rate: ${(adj.baseline * 100).toFixed(0)}% → ${(adj.calibrated * 100).toFixed(0)}%`
         );
