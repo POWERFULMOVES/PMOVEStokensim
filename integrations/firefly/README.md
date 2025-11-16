@@ -173,6 +173,18 @@ npm install
 
 1. **Set up Firefly-iii API token:**
 
+**Option 1: Create .env file (recommended)**
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env and set your values:
+# FIREFLY_API_TOKEN=your-token-here
+# FIREFLY_URL=http://localhost:8080
+# TOTAL_POPULATION=500
+```
+
+**Option 2: Export environment variable**
 ```bash
 # Get token from Firefly-iii: Options > Profile > OAuth > Personal Access Token
 export FIREFLY_API_TOKEN="your-token-here"
@@ -180,6 +192,11 @@ export FIREFLY_API_TOKEN="your-token-here"
 # Optional: Configure Firefly URL and population size
 export FIREFLY_URL="http://localhost:8080"  # Default: http://localhost:8080
 export TOTAL_POPULATION="500"               # Default: 500
+```
+
+**Option 3: Inline with command**
+```bash
+FIREFLY_API_TOKEN="your-token" npm run firefly:calibrate
 ```
 
 2. **Run integration:**
@@ -300,6 +317,15 @@ Week,Start Date,Actual Spending,Baseline Revenue,Calibrated Revenue
 
 ### Environment Variables
 
+Configuration can be provided via `.env` file (recommended), shell exports, or inline with the command.
+
+**Via .env file (recommended):**
+```bash
+# Copy .env.example to .env and edit values
+cp .env.example .env
+```
+
+**Available variables:**
 ```bash
 # Required
 FIREFLY_API_TOKEN="your-firefly-api-token"

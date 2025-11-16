@@ -5,6 +5,7 @@
  * to calibrate PMOVES projections with real financial data
  */
 
+import 'dotenv/config'; // Load environment variables from .env file
 import FireflyIntegration from './firefly-integration';
 import { AI_ENHANCED_LOCAL_SERVICE } from '../projections/scenario-configs';
 
@@ -35,14 +36,19 @@ async function runIntegration(): Promise<void> {
   if (!config.firefly.apiToken) {
     console.error('❌ Error: FIREFLY_API_TOKEN environment variable not set');
     console.error('');
-    console.error('Usage:');
-    console.error(
-      '  FIREFLY_API_TOKEN=your_token_here npm run firefly:calibrate'
-    );
+    console.error('Setup options:');
     console.error('');
-    console.error('Optional environment variables:');
-    console.error('  FIREFLY_URL - Firefly-iii URL (default: http://localhost:8080)');
-    console.error('  TOTAL_POPULATION - Total population for participation calculation (default: 500)');
+    console.error('Option 1: Create .env file (recommended)');
+    console.error('  1. Copy .env.example to .env: cp .env.example .env');
+    console.error('  2. Edit .env and set FIREFLY_API_TOKEN=your_token');
+    console.error('  3. Run: npm run firefly:calibrate');
+    console.error('');
+    console.error('Option 2: Export environment variable');
+    console.error('  export FIREFLY_API_TOKEN=your_token');
+    console.error('  npm run firefly:calibrate');
+    console.error('');
+    console.error('Option 3: Inline with command');
+    console.error('  FIREFLY_API_TOKEN=your_token npm run firefly:calibrate');
     console.error('');
     console.error('To get your Firefly-iii API token:');
     console.error('  1. Log in to your Firefly-iii instance');
