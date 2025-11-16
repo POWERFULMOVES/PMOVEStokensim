@@ -6,7 +6,7 @@
  */
 
 import 'dotenv/config'; // Load environment variables from .env file
-import FireflyIntegration from './firefly-integration';
+import { FireflyIntegration } from './firefly-integration';
 import { AI_ENHANCED_LOCAL_SERVICE } from '../projections/scenario-configs';
 
 /**
