@@ -6,7 +6,7 @@
   "additionalProperties": true,
   "properties": {
     "namespace": { "type": "string" },
-    "source": { "type": "string", "enum": ["firefly"] },
+    "source": { "type": "string" },
     "external_id": { "type": "string" },
     "occurred_at": { "type": "string", "format": "date-time" },
     "amount": { "type": "number" },

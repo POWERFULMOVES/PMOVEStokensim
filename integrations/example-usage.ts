@@ -72,9 +72,7 @@ async function main() {
     'finance.transactions.ingested.v1',
     async (event) => {
       console.log(
-        `\n[Event] Received transactions from ${event.source}:`,
-        event.data.transactions.length,
-        'transactions'
+        `\n[Event] Received transaction ${event.data.external_id} from ${event.data.source}: ${event.data.amount} ${event.data.currency}`
       );
     }
   );
@@ -97,18 +95,14 @@ async function main() {
     'finance.transactions.ingested.v1',
     {
       namespace: 'example',
-      transactions: [
-        {
-          id: 'tx1',
-          amount: 50.0,
-          category: 'food',
-          date: new Date().toISOString(),
-          description: 'Grocery shopping',
-          source: 'checking',
-          destination: 'grocery_store',
-        },
-      ],
-      ingested_at: new Date().toISOString(),
+      source: 'example-app',
+      external_id: 'tx1',
+      occurred_at: new Date().toISOString(),
+      amount: 50.0,
+      currency: 'USD',
+      description: 'Grocery shopping',
+      category: 'food',
+      counterparty: 'grocery_store',
     },
     'example-app'
   );

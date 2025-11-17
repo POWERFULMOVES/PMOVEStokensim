@@ -7,7 +7,6 @@ import { EventBus } from './event-bus/event-bus';
 import { FireflyClient, FireflyConfig } from './firefly/firefly-client';
 import { DoXClient, DoXConfig } from './dox/dox-client';
 import { ContractEventListener, ContractConfig, NetworkConfig } from './contracts/contract-listeners';
-import path from 'path';
 
 export interface IntegrationConfig {
   projectRoot: string;
@@ -112,7 +111,7 @@ export class IntegrationCoordinator {
       'finance.transactions.ingested.v1',
       async (event) => {
         console.log(
-          `[IntegrationCoordinator] Received finance transactions from ${event.source}`
+          `[IntegrationCoordinator] Received transaction ${event.data.external_id} (${event.data.amount} ${event.data.currency}) from ${event.data.source}`
         );
 
         // Optionally upload to DoX for analysis
