@@ -3,7 +3,7 @@
  * Validates all event payloads against their schemas from contracts/schemas/
  */
 
-import Ajv from 'ajv';
+import Ajv from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import fs from 'fs/promises';
 import path from 'path';
@@ -41,10 +41,18 @@ export class SchemaValidator {
       const topicsContent = await fs.readFile(topicsPath, 'utf-8');
       this.topicsConfig = JSON.parse(topicsContent);
 
-      console.log(`[SchemaValidator] Loaded topics config v${this.topicsConfig.v}`);
+      if (!this.topicsConfig) {
+        throw new Error('Invalid topics configuration');
+      }
+
+      console.log(
+        `[SchemaValidator] Loaded topics config v${this.topicsConfig.v}`
+      );
 
       // Load each schema
-      for (const [topic, config] of Object.entries(this.topicsConfig.topics)) {
+      for (const [topic, config] of Object.entries(
+        this.topicsConfig.topics
+      )) {
         const schemaPath = path.join(projectRoot, 'contracts', config.schema);
 
         try {
