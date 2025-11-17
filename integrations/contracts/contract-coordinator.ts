@@ -119,19 +119,15 @@ export class ContractCoordinator {
         await this.eventBus.publish(
           'finance.transactions.ingested.v1',
           {
-            namespace: 'grotoken',
-            transactions: [
-              {
-                id: `grotoken-${week}-${event.recipient}`,
-                amount: event.dollarValue,
-                category: 'rewards',
-                date: new Date().toISOString(),
-                description: `GroToken distribution: ${event.amount} GRO`,
-                source: 'treasury',
-                destination: event.recipient,
-              },
-            ],
-            ingested_at: new Date().toISOString(),
+            namespace: 'simulation:grotoken',
+            source: 'contract_coordinator',
+            external_id: `grotoken-${week}-${event.recipient}`,
+            occurred_at: new Date().toISOString(),
+            amount: event.dollarValue,
+            currency: 'USD',
+            description: `GroToken distribution: ${event.amount} GRO to ${event.recipient}`,
+            category: 'rewards',
+            counterparty: event.recipient,
           },
           'grotoken-distribution'
         );

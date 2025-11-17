@@ -127,7 +127,12 @@ const eventBus = coordinator.getEventBus();
 
 // Subscribe to finance transactions
 eventBus.subscribe('finance.transactions.ingested.v1', async (event) => {
-  console.log('New transactions:', event.data.transactions);
+  console.log('New transaction:', {
+    externalId: event.data.external_id,
+    amount: event.data.amount,
+    currency: event.data.currency,
+    source: event.data.source,
+  });
 
   // Update simulation model
   // ...

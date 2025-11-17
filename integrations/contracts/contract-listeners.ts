@@ -3,7 +3,7 @@
  * Listens to events from PMOVES smart contracts and publishes to event bus
  */
 
-import { ethers, Contract, EventFilter } from 'ethers';
+import { ethers, Contract } from 'ethers';
 import { EventBus } from '../event-bus/event-bus';
 
 export interface ContractConfig {
@@ -24,12 +24,10 @@ export class ContractEventListener {
   private provider: ethers.Provider;
   private contracts: Map<string, Contract> = new Map();
   private eventBus: EventBus;
-  private networkConfig: NetworkConfig;
   private listeners: Map<string, () => void> = new Map();
 
   constructor(eventBus: EventBus, networkConfig: NetworkConfig) {
     this.eventBus = eventBus;
-    this.networkConfig = networkConfig;
 
     // Create provider
     this.provider = new ethers.JsonRpcProvider(
@@ -179,29 +177,33 @@ export class ContractEventListener {
         return;
       }
 
+      const occurredAt = await this.getOccurredAt(rawEvent);
+
       // Transform event data to match schema
-      const transformedData = this.transformEventData(
+      const transactions = this.transformEventData(
         contractName,
         eventName,
-        eventData
+        eventData,
+        occurredAt
       );
 
-      // Publish to event bus
-      await this.eventBus.publish(
-        topic,
-        transformedData,
-        `contract:${contractName}`,
-        {
-          contractName,
-          eventName,
-          blockNumber: rawEvent.blockNumber,
-          transactionHash: rawEvent.transactionHash,
-        }
-      );
+      for (const payload of transactions) {
+        await this.eventBus.publish(
+          topic,
+          payload,
+          `contract:${contractName}`,
+          {
+            contractName,
+            eventName,
+            blockNumber: rawEvent.blockNumber,
+            transactionHash: rawEvent.transactionHash,
+          }
+        );
 
-      console.log(
-        `[ContractListener] Published ${contractName}.${eventName} to topic ${topic}`
-      );
+        console.log(
+          `[ContractListener] Published ${contractName}.${eventName} (${payload.external_id}) to topic ${topic}`
+        );
+      }
     } catch (error) {
       console.error(
         `[ContractListener] Failed to publish ${contractName}.${eventName}:`,
@@ -237,33 +239,134 @@ export class ContractEventListener {
   private transformEventData(
     contractName: string,
     eventName: string,
-    eventData: Record<string, any>
-  ): any {
+    eventData: Record<string, any>,
+    occurredAt: string
+  ): Array<Record<string, any>> {
     const namespace = `contract:${contractName.toLowerCase()}`;
+    const category = this.getCategoryForEvent(contractName);
+    const currency = this.getCurrencyForContract(contractName);
+    const amount = this.getAmountForEvent(eventName, eventData);
 
-    // Transform based on target schema
-    // This is simplified - in production, map each event type properly
-    const transaction = {
-      id: `${eventData.transactionHash}-${eventData.logIndex}`,
-      amount: parseFloat(eventData.amount || eventData.value || '0'),
-      category: this.getCategoryForEvent(contractName, eventName),
-      date: new Date().toISOString(),
-      description: `${contractName} ${eventName}`,
-      source: eventData.from || eventData.contributor || eventData.creator,
-      destination: eventData.to || eventData.supplier,
-    };
-
-    return {
+    const payload = {
       namespace,
-      transactions: [transaction],
-      ingested_at: new Date().toISOString(),
+      source: 'contract_listener',
+      external_id: this.getExternalId(eventData),
+      occurred_at: occurredAt,
+      amount,
+      currency,
+      description: this.buildDescription(contractName, eventName, eventData),
+      category,
+      counterparty: this.getCounterparty(eventData),
+      ts: occurredAt,
     };
+
+    return [payload];
+  }
+
+  private getExternalId(eventData: Record<string, any>): string {
+    if (eventData.transactionHash && eventData.logIndex !== undefined) {
+      return `${eventData.transactionHash}-${eventData.logIndex}`;
+    }
+    return `event-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  private async getOccurredAt(rawEvent: any): Promise<string> {
+    try {
+      if (typeof rawEvent.getBlock === 'function') {
+        const block = await rawEvent.getBlock();
+        if (block?.timestamp) {
+          return new Date(block.timestamp * 1000).toISOString();
+        }
+      }
+
+      if (rawEvent.blockNumber !== undefined) {
+        const block = await this.provider.getBlock(rawEvent.blockNumber);
+        if (block?.timestamp) {
+          return new Date(block.timestamp * 1000).toISOString();
+        }
+      }
+    } catch (error) {
+      console.warn('[ContractListener] Failed to fetch block timestamp:', error);
+    }
+
+    return new Date().toISOString();
+  }
+
+  private getAmountForEvent(
+    eventName: string,
+    eventData: Record<string, any>
+  ): number {
+    const parseValue = (value: any): number => {
+      if (value === undefined || value === null) return 0;
+      if (typeof value === 'number') return value;
+      if (typeof value === 'bigint') return Number(value);
+      const parsed = parseFloat(value.toString());
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    switch (eventName) {
+      case 'ContributionReceived':
+        return parseValue(eventData.amount);
+      case 'OrderExecuted':
+        return parseValue(eventData.totalSent);
+      case 'OrderCreated':
+        return parseValue(eventData.targetAmount);
+      case 'Transfer':
+        return parseValue(eventData.value);
+      case 'Deposit':
+      case 'Withdrawal':
+        return parseValue(eventData.amount);
+      default:
+        return parseValue(
+          eventData.amount ||
+            eventData.value ||
+            eventData.totalSent ||
+            eventData.targetAmount
+        );
+    }
+  }
+
+  private getCurrencyForContract(contractName: string): string {
+    const currencyMap: Record<string, string> = {
+      GroupPurchase: 'FUSD',
+      FoodUSD: 'FUSD',
+      GroToken: 'GRO',
+      GroVault: 'GRO',
+    };
+
+    return currencyMap[contractName] || 'USD';
+  }
+
+  private buildDescription(
+    contractName: string,
+    eventName: string,
+    eventData: Record<string, any>
+  ): string {
+    const base = `${contractName} ${eventName}`;
+    if (eventData.orderId) {
+      return `${base} (order ${eventData.orderId})`;
+    }
+    if (eventData.transactionHash) {
+      return `${base} (${eventData.transactionHash})`;
+    }
+    return base;
+  }
+
+  private getCounterparty(eventData: Record<string, any>): string | undefined {
+    return (
+      eventData.supplier ||
+      eventData.to ||
+      eventData.contributor ||
+      eventData.creator ||
+      eventData.from ||
+      undefined
+    );
   }
 
   /**
    * Get category for contract event
    */
-  private getCategoryForEvent(contractName: string, eventName: string): string {
+  private getCategoryForEvent(contractName: string): string {
     const categoryMap: Record<string, string> = {
       GroupPurchase: 'food',
       FoodUSD: 'food',
