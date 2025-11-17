@@ -777,11 +777,26 @@ def run_simulation(params, *, validated=False):
 
     app.logger.info("--- Simulation Loop Finished ---")
 
+    final_member_data = [
+        {
+            "ID": member.id,
+            "Income": member.weekly_income,
+            "Budget": member.weekly_food_budget,
+            "Wealth_A": member.wealth_scenario_A,
+            "Wealth_B": member.wealth_scenario_B,
+            "FoodUSD_B": member.food_usd_balance,
+            "GroToken_B": member.grotoken_balance,
+        }
+        for member in members
+    ]
+
+    final_members_df = pd.DataFrame(final_member_data)
     summary = generate_narrative_summary(simulation_history, key_events)
 
     return {
         "history": simulation_history,
-        "events": key_events,
+        "final_members": final_members_df.to_dict(orient="records"),
+        "key_events": key_events,
         "summary": summary,
     }
 

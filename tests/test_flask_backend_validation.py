@@ -75,3 +75,7 @@ def test_run_simulation_accepts_valid_payload(client):
     assert 'history' in data
     assert len(data['history']) == payload["SIMULATION_WEEKS"]
     assert data['history'][0]['Week'] == 1
+    assert 'final_members' in data
+    assert len(data['final_members']) == payload["NUM_MEMBERS"]
+    assert 'key_events' in data
+    assert 'summary' in data
