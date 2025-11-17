@@ -53,7 +53,8 @@ export function ViolinPlot({
   const allValues = data.flatMap(d => d.values);
   const minValue = Math.min(...allValues);
   const maxValue = Math.max(...allValues);
-  const valueRange = maxValue - minValue;
+  const rawValueRange = maxValue - minValue;
+  const valueRange = rawValueRange === 0 ? 1 : rawValueRange;
 
   // SVG dimensions
   const width = 800;
@@ -68,7 +69,9 @@ export function ViolinPlot({
   };
 
   // Calculate kernel density estimation for violin shape
-  const kde = (values: number[], bandwidth: number = valueRange * 0.1) => {
+  const kde = (values: number[], bandwidth?: number) => {
+    const safeBandwidth = bandwidth ?? valueRange * 0.1;
+    const effectiveBandwidth = safeBandwidth === 0 ? 1 : safeBandwidth;
     const points: { y: number; density: number }[] = [];
     const nPoints = 50;
 
@@ -77,11 +80,11 @@ export function ViolinPlot({
       let density = 0;
 
       for (const value of values) {
-        const u = (y - value) / bandwidth;
+        const u = (y - value) / effectiveBandwidth;
         density += Math.exp(-0.5 * u * u);
       }
 
-      density /= (values.length * bandwidth * Math.sqrt(2 * Math.PI));
+      density /= (values.length * effectiveBandwidth * Math.sqrt(2 * Math.PI));
       points.push({ y, density });
     }
 
