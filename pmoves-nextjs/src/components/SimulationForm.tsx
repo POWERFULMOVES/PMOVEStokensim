@@ -104,6 +104,15 @@ interface SimulationFormProps {
   isLoading: boolean;
 }
 
+/**
+ * Render a tabbed, validated form for configuring and submitting simulation parameters.
+ *
+ * The form presents grouped parameter inputs (Basic, Economy, Cooperative), validates values using the exported schema, shows per-field validation messages, and invokes the provided `onSubmit` callback when the form is submitted with valid values.
+ *
+ * @param onSubmit - Callback invoked with the form values after successful validation
+ * @param isLoading - When true, disables the submit button and updates its label to indicate the simulation is running
+ * @returns The rendered SimulationForm UI (tabs, inputs, validation messages, and submit control)
+ */
 export function SimulationForm({ onSubmit, isLoading }: SimulationFormProps) {
   const [activeTab, setActiveTab] = useState('basic');
 
