@@ -49,7 +49,7 @@ export class GroupPurchaseModel {
   private nextOrderId: number = 1;
   private contributions: Contribution[] = [];
   private savingsHistory: SavingsResult[] = [];
-  private currentWeek: number = 0;
+  // private _currentWeek: number = 0;
 
   constructor(
     foodUSD: FoodUSDModel,
@@ -76,7 +76,7 @@ export class GroupPurchaseModel {
     targetAmount: number,
     category: string
   ): number {
-    this.currentWeek = week;
+    // this._currentWeek = week;
 
     if (!this.config.categories.includes(category)) {
       throw new Error(
@@ -102,9 +102,9 @@ export class GroupPurchaseModel {
 
     this.orders.set(orderId, order);
 
-    console.log(
-      `[GroupPurchase] Created order ${orderId} for ${category}, target: ${targetAmount}`
-    );
+    // console.log(
+    //   `[GroupPurchase] Created order ${orderId} for ${category}, target: ${targetAmount}`
+    // );
 
     return orderId;
   }
@@ -156,9 +156,9 @@ export class GroupPurchaseModel {
 
     this.contributions.push(contribution);
 
-    console.log(
-      `[GroupPurchase] ${contributor} contributed ${amount} to order ${orderId}`
-    );
+    // console.log(
+    //   `[GroupPurchase] ${contributor} contributed ${amount} to order ${orderId}`
+    // );
 
     // Auto-execute if target met
     if (order.totalContributed >= order.targetAmount) {
@@ -228,11 +228,11 @@ export class GroupPurchaseModel {
 
     this.savingsHistory.push(savingsResult);
 
-    console.log(
-      `[GroupPurchase] Executed order ${orderId}, saved ${savingsAmount} (${
-        this.config.savingsRate * 100
-      }%)`
-    );
+    // console.log(
+    //   `[GroupPurchase] Executed order ${orderId}, saved ${savingsAmount} (${
+    //     this.config.savingsRate * 100
+    //   }%)`
+    // );
 
     return savingsResult;
   }
@@ -272,9 +272,9 @@ export class GroupPurchaseModel {
     order.participants.delete(participant);
     order.totalContributed -= contribution;
 
-    console.log(
-      `[GroupPurchase] Refunded ${contribution} to ${participant} for order ${orderId}`
-    );
+    // console.log(
+    //   `[GroupPurchase] Refunded ${contribution} to ${participant} for order ${orderId}`
+    // );
 
     return contribution;
   }

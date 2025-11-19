@@ -84,7 +84,7 @@ export class FoodUSDModel {
       spendingByCategory: {},
     });
 
-    console.log(`[FoodUSD] Initialized ${addresses.length + 1} holders`);
+    // console.log(`[FoodUSD] Initialized ${addresses.length + 1} holders`);
   }
 
   /**
@@ -102,7 +102,7 @@ export class FoodUSDModel {
     holder.totalMinted += amount;
     this.totalSupply += amount;
 
-    console.log(`[FoodUSD] Minted ${amount} FUSD to ${to}`);
+    // console.log(`[FoodUSD] Minted ${amount} FUSD to ${to}`);
 
     return true;
   }
@@ -121,7 +121,7 @@ export class FoodUSDModel {
     holder.totalBurned += amount;
     this.totalSupply -= amount;
 
-    console.log(`[FoodUSD] Burned ${amount} FUSD from ${from}`);
+    // console.log(`[FoodUSD] Burned ${amount} FUSD from ${from}`);
 
     return true;
   }
@@ -249,9 +249,9 @@ export class FoodUSDModel {
       return null;
     }
 
-    const weeklyTransactions = this.transactions.filter(
-      (tx) => tx.from === address
-    );
+    // const _weeklyTransactions = this.transactions.filter(
+    //   (tx) => tx.from === address
+    // );
 
     const averageWeeklySpending =
       this.currentWeek > 0

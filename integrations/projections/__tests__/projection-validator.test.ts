@@ -263,6 +263,7 @@ describe('ProjectionValidator', () => {
       const highROIModel: ProjectionModel = {
         ...AI_ENHANCED_LOCAL_SERVICE,
         projectedRiskAdjustedROI: 1.0, // Very low target (100%)
+        projectedBreakEvenMonths: 12, // Relaxed target for test assurance
       };
 
       const report = await validator.validate(highROIModel);

@@ -1,13 +1,5 @@
-/**
- * Projection Calibration Engine
- *
- * Calibrates PMOVES projection models using real financial data from Firefly-iii
- */
-
-import { TransformedData, WeeklySpending } from '../firefly/data-transformer';
+import { TransformedData } from '../firefly/data-transformer';
 import { ProjectionModel, SimulationResults } from './projection-validator';
-import { FoodUSDModel } from '../contracts/foodusd-model';
-import { GroupPurchaseModel } from '../contracts/grouppurchase-model';
 
 export interface CalibrationResult {
   parameter: string;

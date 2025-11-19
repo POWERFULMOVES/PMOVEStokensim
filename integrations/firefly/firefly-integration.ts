@@ -115,12 +115,12 @@ export class FireflyIntegration {
   ): Promise<SimulationResults> {
     console.log('\n🔬 Running baseline simulation...');
 
-    const results = await this.validator.simulate(
+    const results = await this.validator.runSimulation(
       model,
-      model.projectedWeeks || 52
+      52 // Default to 52 weeks for baseline comparison
     );
 
-    console.log(`   ✅ Simulated ${model.projectedWeeks || 52} weeks`);
+    console.log(`   ✅ Simulated 52 weeks`);
     console.log(
       `   Total revenue: $${results.cumulativeRevenue[results.cumulativeRevenue.length - 1].toLocaleString()}`
     );
@@ -172,9 +172,9 @@ export class FireflyIntegration {
 
     const calibratedModel = this.calibrator.applyCalibration(model, calibration);
 
-    const results = await this.validator.simulate(
+    const results = await this.validator.runSimulation(
       calibratedModel,
-      calibratedModel.projectedWeeks || 52
+      52 // Default to 52 weeks
     );
 
     console.log(`   ✅ Calibrated simulation complete`);

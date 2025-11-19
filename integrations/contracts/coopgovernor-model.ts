@@ -52,7 +52,7 @@ export class CoopGovernorModel {
   private nextProposalId: number = 1;
   private votes: Vote[] = [];
   private spentVotingPower: Map<number, Map<string, number>> = new Map(); // proposalId => (voter => spent power)
-  private currentWeek: number = 0;
+  private _currentWeek: number = 0;
 
   constructor(
     vault: GroVaultModel,
@@ -78,7 +78,7 @@ export class CoopGovernorModel {
     description: string,
     category: string = 'general'
   ): number {
-    this.currentWeek = week;
+    this._currentWeek = week;
 
     const proposalId = this.nextProposalId++;
     const startWeek = week;
@@ -100,9 +100,9 @@ export class CoopGovernorModel {
     this.proposals.set(proposalId, proposal);
     this.spentVotingPower.set(proposalId, new Map());
 
-    console.log(
-      `[CoopGovernor] Proposal ${proposalId} created: "${description}"`
-    );
+    // console.log(
+    //   `[CoopGovernor] Proposal ${proposalId} created: "${description}"`
+    // );
 
     return proposalId;
   }
@@ -118,7 +118,7 @@ export class CoopGovernorModel {
     rawVotes: number,
     support: boolean
   ): boolean {
-    this.currentWeek = week;
+    this._currentWeek = week;
 
     const proposal = this.proposals.get(proposalId);
 
@@ -179,9 +179,9 @@ export class CoopGovernorModel {
     // Update spent voting power
     this.spentVotingPower.get(proposalId)!.set(voter, totalNeeded);
 
-    console.log(
-      `[CoopGovernor] ${voter} voted ${support ? 'FOR' : 'AGAINST'} proposal ${proposalId} with ${rawVotes} votes (cost: ${cost})`
-    );
+    // console.log(
+    //   `[CoopGovernor] ${voter} voted ${support ? 'FOR' : 'AGAINST'} proposal ${proposalId} with ${rawVotes} votes (cost: ${cost})`
+    // );
 
     return true;
   }
@@ -234,9 +234,9 @@ export class CoopGovernorModel {
       quorumMet,
     };
 
-    console.log(
-      `[CoopGovernor] Proposal ${proposalId} ${passed ? 'PASSED' : 'FAILED'}. For: ${proposal.forVotes}, Against: ${proposal.againstVotes}`
-    );
+    // console.log(
+    //   `[CoopGovernor] Proposal ${proposalId} ${passed ? 'PASSED' : 'FAILED'}. For: ${proposal.forVotes}, Against: ${proposal.againstVotes}`
+    // );
 
     return result;
   }
@@ -282,38 +282,21 @@ export class CoopGovernorModel {
   getVoterStats(voter: string): {
     proposalsVotedOn: number;
     totalVotesCast: number;
-    totalVotingPowerUsed: number;
-    currentVotingPower: number;
-    participationRate: number;
+    averageVotingPowerUsed: number;
   } {
     const voterVotes = this.votes.filter((v) => v.voter === voter);
-
-    const proposalsVotedOn = new Set(voterVotes.map((v) => v.proposalId)).size;
-
-    const totalVotesCast = voterVotes.reduce((sum, v) => sum + v.rawVotes, 0);
-
-    const totalVotingPowerUsed = voterVotes.reduce(
-      (sum, v) => sum + v.votingPowerUsed,
-      0
-    );
-
-    const currentVotingPower = this.vault.getVotingPower(voter);
-
-    const totalProposals = this.proposals.size;
-    const participationRate =
-      totalProposals > 0 ? proposalsVotedOn / totalProposals : 0;
+    const totalPowerUsed = voterVotes.reduce((sum, v) => sum + v.votingPowerUsed, 0);
 
     return {
-      proposalsVotedOn,
-      totalVotesCast,
-      totalVotingPowerUsed,
-      currentVotingPower,
-      participationRate,
+      proposalsVotedOn: new Set(voterVotes.map((v) => v.proposalId)).size,
+      totalVotesCast: voterVotes.reduce((sum, v) => sum + v.rawVotes, 0),
+      averageVotingPowerUsed:
+        voterVotes.length > 0 ? totalPowerUsed / voterVotes.length : 0,
     };
   }
 
   /**
-   * Get overall governance statistics
+   * Get global governance statistics
    */
   getStatistics(): {
     totalProposals: number;
@@ -327,27 +310,24 @@ export class CoopGovernorModel {
     averageQuorum: number;
   } {
     const allProposals = Array.from(this.proposals.values());
+    const active = this.getActiveProposals(this._currentWeek);
     const executed = allProposals.filter((p) => p.executed);
-    const active = allProposals.filter(
-      (p) => this.currentWeek >= p.startWeek && this.currentWeek <= p.endWeek
-    );
 
-    let passedCount = 0;
     let totalParticipation = 0;
     let totalQuorum = 0;
+    let passedCount = 0;
+
+    const stats = this.vault.getStatistics();
 
     for (const proposal of executed) {
       const totalVotes = proposal.forVotes + proposal.againstVotes;
-
-      const stats = this.vault.getStatistics();
       const participation =
-        stats.totalVotingPower > 0
-          ? totalVotes / stats.totalVotingPower
-          : 0;
+        stats.totalVotingPower > 0 ? totalVotes / stats.totalVotingPower : 0;
 
       totalParticipation += participation;
 
-      const quorum = totalVotes >= stats.totalVotingPower * this.config.quorumPercentage;
+      const quorum =
+        totalVotes >= stats.totalVotingPower * this.config.quorumPercentage;
 
       if (quorum) {
         totalQuorum++;
@@ -374,8 +354,7 @@ export class CoopGovernorModel {
       uniqueVoters,
       averageParticipationRate:
         executed.length > 0 ? totalParticipation / executed.length : 0,
-      averageQuorum:
-        executed.length > 0 ? totalQuorum / executed.length : 0,
+      averageQuorum: executed.length > 0 ? totalQuorum / executed.length : 0,
     };
   }
 
@@ -388,7 +367,7 @@ export class CoopGovernorModel {
     quadraticFairness: number;
     averageVotesPerVoter: number;
   } {
-    const stats = this.vault.getStatistics();
+    // const _stats = this.vault.getStatistics();
     const uniqueVoters = new Set(this.votes.map((v) => v.voter)).size;
 
     // Estimate total potential voters (those with vault positions)

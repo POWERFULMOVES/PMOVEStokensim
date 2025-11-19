@@ -83,7 +83,7 @@ export function exportValidationReportCSV(
  * Export weekly simulation data to CSV
  */
 export function exportWeeklyDataCSV(
-  modelName: string,
+  _modelName: string,
   results: SimulationResults,
   outputPath: string
 ): void {
