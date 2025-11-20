@@ -39,10 +39,7 @@ const formSchema = z.object({
     .refine(val => val >= 20, {
       message: "Average food budget should be at least $20"
     }),
-  WEEKLY_FOOD_BUDGET_STDDEV: z.coerce.number().min(1).max(200)
-    .refine(val => val <= val * 0.75, {
-      message: "Standard deviation should be reasonable compared to average"
-    }),
+  WEEKLY_FOOD_BUDGET_STDDEV: z.coerce.number().min(1).max(200),
   MIN_WEEKLY_BUDGET: z.coerce.number().min(5).max(100),
 
   // Income parameters
@@ -50,10 +47,7 @@ const formSchema = z.object({
     .refine(val => val >= 50, {
       message: "Average income should be at least $50 per week"
     }),
-  WEEKLY_INCOME_STDDEV: z.coerce.number().min(5).max(1000)
-    .refine(val => val <= val * 0.75, {
-      message: "Standard deviation should be reasonable compared to average"
-    }),
+  WEEKLY_INCOME_STDDEV: z.coerce.number().min(5).max(1000),
   MIN_WEEKLY_INCOME: z.coerce.number().min(0).max(500),
 
   // Cooperative model parameters
@@ -85,6 +79,22 @@ const formSchema = z.object({
     .refine(val => val <= 50, {
       message: "Weekly fee should be reasonable (max $50)"
     }),
+}).superRefine((values, ctx) => {
+  if (values.WEEKLY_FOOD_BUDGET_STDDEV > values.WEEKLY_FOOD_BUDGET_AVG * 0.75) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['WEEKLY_FOOD_BUDGET_STDDEV'],
+      message: 'Food budget standard deviation must be at most 75% of the average.',
+    });
+  }
+
+  if (values.WEEKLY_INCOME_STDDEV > values.WEEKLY_INCOME_AVG * 0.75) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['WEEKLY_INCOME_STDDEV'],
+      message: 'Income standard deviation must be at most 75% of the average.',
+    });
+  }
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -270,7 +280,7 @@ export function SimulationForm({ onSubmit, isLoading }: SimulationFormProps) {
                             <Input type="number" step="1" min="1" max="200" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Standard deviation of food budgets (recommended: 10-30% of average)
+                            Standard deviation of food budgets (must be ≤ 75% of average; recommended: 10-30%)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -342,7 +352,7 @@ export function SimulationForm({ onSubmit, isLoading }: SimulationFormProps) {
                             <Input type="number" step="5" min="5" max="1000" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Standard deviation of weekly incomes (recommended: 20-40% of average)
+                            Standard deviation of weekly incomes (must be ≤ 75% of average; recommended: 20-40%)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
