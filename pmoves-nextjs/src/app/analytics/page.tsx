@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Median Improvement:</span>
-                  <span className="text-sm text-green-600">
+                  <span className="text-sm text-[hsl(var(--positive))]">
                     +{((simulationData.stats.medianB / simulationData.stats.medianA - 1) * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Inequality Reduction:</span>
-                  <span className="text-sm text-green-600">
+                  <span className="text-sm text-[hsl(var(--positive))]">
                     -{((1 - simulationData.stats.giniB / simulationData.stats.giniA) * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -123,7 +123,7 @@ export default function AnalyticsPage() {
               <CardContent className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Total Cooperative Savings:</span>
-                  <span className="text-sm text-green-600">
+                  <span className="text-sm text-[hsl(var(--positive))]">
                     ${simulationData.stats.totalCoopSavings.toFixed(2)}
                   </span>
                 </div>
@@ -147,7 +147,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">Members Lifted:</span>
-                  <span className="text-sm text-green-600">
+                  <span className="text-sm text-[hsl(var(--positive))]">
                     {Math.round((simulationData.stats.povertyRateA - simulationData.stats.povertyRateB) * simulationData.members.length)}
                   </span>
                 </div>
@@ -314,23 +314,23 @@ export default function AnalyticsPage() {
                 <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Average Wealth</span>
-                    <span className="font-medium text-green-600">${simulationData.stats.avgWealthB.toFixed(2)}</span>
+                    <span className="font-medium text-[hsl(var(--positive))]">${simulationData.stats.avgWealthB.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Median Wealth</span>
-                    <span className="font-medium text-green-600">${simulationData.stats.medianB.toFixed(2)}</span>
+                    <span className="font-medium text-[hsl(var(--positive))]">${simulationData.stats.medianB.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Gini Coefficient</span>
-                    <span className="font-medium text-green-600">{simulationData.stats.giniB.toFixed(3)}</span>
+                    <span className="font-medium text-[hsl(var(--positive))]">{simulationData.stats.giniB.toFixed(3)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Poverty Rate</span>
-                    <span className="font-medium text-green-600">{(simulationData.stats.povertyRateB * 100).toFixed(1)}%</span>
+                    <span className="font-medium text-[hsl(var(--positive))]">{(simulationData.stats.povertyRateB * 100).toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Wealth Gap (90/10)</span>
-                    <span className="font-medium text-green-600">{simulationData.stats.wealthGapB.toFixed(2)}×</span>
+                    <span className="font-medium text-[hsl(var(--positive))]">{simulationData.stats.wealthGapB.toFixed(2)}×</span>
                   </div>
                 </div>
 
@@ -354,22 +354,22 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-                  <div className="text-3xl font-bold text-green-600">
+                <div className="text-center p-4 rounded-lg bg-[hsl(var(--positive-muted))]">
+                  <div className="text-3xl font-bold text-[hsl(var(--positive))]">
                     +{((simulationData.stats.avgWealthB / simulationData.stats.avgWealthA - 1) * 100).toFixed(1)}%
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">Average Wealth Increase</div>
                 </div>
 
-                <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                  <div className="text-3xl font-bold text-blue-600">
+                <div className="text-center p-4 rounded-lg bg-[hsl(var(--informative-muted))]">
+                  <div className="text-3xl font-bold text-[hsl(var(--informative))]">
                     -{((1 - simulationData.stats.giniB / simulationData.stats.giniA) * 100).toFixed(1)}%
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">Inequality Reduction</div>
                 </div>
 
-                <div className="text-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                  <div className="text-3xl font-bold text-purple-600">
+                <div className="text-center p-4 rounded-lg bg-[hsl(var(--accent-muted))]">
+                  <div className="text-3xl font-bold text-[hsl(var(--accent-strong))]">
                     {Math.round((simulationData.stats.povertyRateA - simulationData.stats.povertyRateB) * simulationData.members.length)}
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">Members Lifted from Poverty</div>

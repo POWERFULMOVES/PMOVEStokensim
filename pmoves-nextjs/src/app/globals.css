@@ -31,7 +31,14 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
- 
+
+    --positive: 142 71% 29%;
+    --positive-muted: 142 76% 92%;
+    --informative: 221 83% 53%;
+    --informative-muted: 213 100% 96%;
+    --accent-strong: 270 91% 65%;
+    --accent-muted: 270 100% 96%;
+
     --radius: 0.5rem;
   }
  
@@ -63,6 +70,13 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+
+    --positive: 152 76% 72%;
+    --positive-muted: 161 86% 18%;
+    --informative: 213 94% 68%;
+    --informative-muted: 226 35% 19%;
+    --accent-strong: 271 91% 75%;
+    --accent-muted: 263 65% 18%;
   }
 }
  
